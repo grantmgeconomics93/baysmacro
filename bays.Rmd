@@ -99,20 +99,49 @@ epsilon_q <- rnorm(N, mean = 0, sd = sigma_e_q) # Equity price markup shocks
 
 ```
 ```{r}
-# Define the number of time periods
-N <- 100 # Adjust N according to your model's timeframe or dataset
+calculate_ema_4th_order <- function(data, n=4) {
+  # Ensure data is in correct format (numeric vector)
+  if (!is.numeric(data)) {
+    stop("Data must be a numeric vector.")
+  }
 
-# Define the mean and standard deviation for the technology growth rate
-mean_tech_growth <- 0.4
-sd_tech_growth <- 0.1
-
-# Generate the deterministic technology growth rates
-tech_growth_rates <- rnorm(N, mean = mean_tech_growth, sd = sd_tech_growth)
-
-# tech_growth_rates now contains N values of the technology growth rate, each drawn from a Normal distribution
-# with a mean of 0.4 and a standard deviation of 0.1
+  alpha <- 2 / (n + 1)
+  ema <- numeric(length(data))
+  ema[1] <- data[1]  # Initialize the first EMA value to the first data point
+  
+  for (t in 2:length(data)) {
+    ema[t] <- alpha * data[t] + (1 - alpha) * ema[t-1]
+  }
+  
+  # To calculate expected next value, we simply apply the formula one more time assuming last value repeats
+  expected_next_ema <- alpha * data[length(data)] + (1 - alpha) * ema[length(ema)]
+  return(list(ema = ema, expected_next = expected_next_ema))
+}
 
 ```
+```{r}
+
+# Now, apply the calculate_ema_4th_order function to this lagged series
+# Assuming you have initialized your dataframe and it's being updated elsewhere in your simulation
+
+calculate_ema_4th_order_for_df <- function(df, column_name, n=4) {
+  # Extract the column data based on column_name
+  data <- df[[column_name]]
+  
+  # Filter out NA values that arise due to lagging
+  data <- na.omit(data)
+  
+  # Apply the EMA calculation
+  ema_result <- calculate_ema_4th_order(data, n)
+  
+  # Return the result
+  return(ema_result)
+}
+
+
+```
+
+
 ```{r}
 # Define the parameters for the Beta distribution based on the given mean and standard deviation
 mean_beta <- 0.85
@@ -121,7 +150,7 @@ alpha_beta <- ((1 - mean_beta) / sd_beta^2 - 1 / mean_beta) * mean_beta^2
 beta_beta <- alpha_beta * (1 / mean_beta - 1)
 
 # Simulate a persistence parameter from the Beta distribution
-rho_l <- rbeta(1, alpha_beta, beta_beta)
+rho_c <- rbeta(1, alpha_beta, beta_beta)
 
 # Define the length of your time series
 N <- 100  # Replace with your actual sample size
@@ -131,7 +160,7 @@ N <- 100  # Replace with your actual sample size
 sigma_eta_c<- 0.336  # Replace with the actual standard deviation of your white noise process
 
 # Generate an IID white noise shock series
-eta_c <- rnorm(N, mean = 0, sd = sigma_eta_l)
+eta_c <- rnorm(N, mean = 0, sd = sigma_eta_c)
 
 # Initialize your series
 epsilon_c <- numeric(N)
@@ -145,6 +174,18 @@ for(t in 2:N) {
 # epsilon_l now contains the AR(1) process values
 
 ```
+```{r}
+# Initialize your new dataframe
+data <- data.frame(
+  time = 1:4,  # Assuming you need a 'time' variable for arranging
+  C_hat = c(0, 0, 0, 0),
+  I_hat = c(0, 0, 0, 0),
+  R_hat = c(0, 0, 0, 0)  # Add R_hat if you need it, initializing with zeros or appropriate values
+)
+
+```
+
+
 
 ```{r}
 library(dplyr)
@@ -156,16 +197,16 @@ library(dplyr)
 data <- data %>%
   arrange(time) %>% # Replace 'time' with your actual time variable
   mutate(
-    C_hat_lag1 = lag(C_hat, 1),
-    i_hat_lag1 = lag(i_hat, 1),
-    expected_C_hat_next = ((lag(C_hat,1)-lag(C_hat, 2))+ lag(C_hat,1)), # This is a placeholder for actual expected values
-    expected_R_hat_next =((lag(R_hat,1)-lag(R_hat, 2))+ lag(R_hat,1))  # This is a placeholder for actual expected values
+    C_hat_lag1[t] == lag(C_hat, 1),
+    i_hat_lag1[t]== lag(i_hat, 1),
+    expected_C_hat_next == calculate_ema_4th_order(C_hat)$expected_next,
+    expected_R_hat_next == calculate_ema_4th_order(R_hat)$expected_next, # This is a placeholder for actual expected values
   )
 
 # Calculate the new C_hat using the lagged and expected values
 data <- data %>%
   mutate(
-    C_hat_new = h / (1 + h) * C_hat_lag1 +
+    C_hat_new[t] = h / (1 + h) * C_hat_lag1 +
                 1 / (1 + h) * expected_C_hat_next +
                 (sigma_c - 1) / (sigma_c * (1 + lambda) * (1 + h)) * (i_hat - i_hat_lag1) -
                 (1 - h) / ((1 + h) * phi * sigma_c) * (R_hat - expected_R_hat_next) +
@@ -206,11 +247,11 @@ r_k_star <- (1 / Beta) - 1 + tau
 # Add expected future value of the output gap to the dataframe
 data <- data %>%
   mutate(
-    Q_hat_next_expected = ((lag(Q_hat,1)-lag(Q_hat, 2))+ lag(Q_hat,1)),  # expected future value of the output gap
-    r_k_next_expected =((lag(r_k,1)-lag(r_k, 2))+ lag(r_k,1)),      # expected future rental rate of capital
+    Q_hat_next_expected[t] = ((lag(Q_hat,1)-lag(Q_hat, 2))+ lag(Q_hat,1)),  # expected future value of the output gap
+    r_k_next_expected[t]=((lag(r_k,1)-lag(r_k, 2))+ lag(r_k,1)),      # expected future rental rate of capital
     
     # Output gap equation
-    Q_hat = -(R_hat - pi_e_next) +
+    Q_hat[t] = -(R_hat - pi_e_next) +
             1-tau / (1 - tau + r_k_star) * Q_hat_next_expected +
             r_k / (1 - tau + r_k_star) * r_k_next_expected + epsilon_q[t]
           
@@ -221,25 +262,25 @@ data <- data %>%
 ```{r}
 
 # Simulate a persistence parameter from the Beta distribution
-rho_l <- rbeta(1, alpha_beta, beta_beta)
+rho_i <- rbeta(1, alpha_beta, beta_beta)
 
 # Define the length of your time series
 N <- 100  # Replace with your actual sample size
 
 # Define the standard deviation for the white noise shock
 # This should be known or estimated from your data; here I'll assume a placeholder value
-sigma_eta_l <- 1  # Replace with the actual standard deviation of your white noise process
+sigma_eta_i <- 3.52  # Replace with the actual standard deviation of your white noise process
 
 # Generate an IID white noise shock series
-eta_l <- rnorm(N, mean = 0, sd = sigma_eta_l)
+eta_i <- rnorm(N, mean = 0, sd = sigma_eta_i)
 
 # Initialize your series
-epsilon_l <- numeric(N)
-epsilon_l[1] <- eta_l[1]  # You could start with the first shock or with a different initial value
+epsilon_i <- numeric(N)
+epsilon_i[1] <- eta_i[1]  # You could start with the first shock or with a different initial value
 
 # Simulate the AR(1) process
 for(t in 2:N) {
-  epsilon_l[t] <- rho_l * epsilon_l[t-1] + eta_l[t]
+  epsilon_i[t] <- rho_i * epsilon_i[t-1] + eta_i[t]
 }
 
 ```
@@ -249,12 +290,12 @@ for(t in 2:N) {
 data <- data %>%
   arrange(time) %>% # Replace 'time' with your actual time variable if necessary
   mutate(
-    i_hat_lag1 = lag(i_hat, 1),                    # lagged i_hat
-    E_i_hat_next = ((lag(i_hat,1)-lag(i_hat, 2))+ lag(i_hat,1)),                 # expected i_hat next period
+    i_hat_lag1[t] = lag(i_hat, 1),                    # lagged i_hat
+    E_i_hat_next[t] = ((lag(i_hat,1)-lag(i_hat, 2))+ lag(i_hat,1)),                 # expected i_hat next period
     # The following line is a placeholder for your epsilon_i calculation
-    i_hat_new = (1 / (1 + Beta)) * i_hat_lag1 +    # recursive equation part
+    i_hat_new[t] = (1 / (1 + Beta)) * i_hat_lag1 +    # recursive equation part
                 (Beta / (1 + Beta)) * E_i_hat_next +
-                (1 / (1 + Beta)) * (1 / phi_uppercase) * Q_hat +epsilon_l[t] 
+                (1 / (1 + Beta)) * (1 / phi_uppercase) * Q_hat +epsilon_i[t] 
                 
   )
 ```
@@ -275,7 +316,7 @@ eta_k <- rnorm(N, mean = 0, sd = sigma_eta_k)
 
 # Initialize your series
 epsilon_k <- numeric(N)
-epsilon_k[1] <- eta_l[1]  # You could start with the first shock or with a different initial value
+epsilon_k[1] <- eta_k[1]  # You could start with the first shock or with a different initial value
 
 # Simulate the AR(1) process
 for(t in 2:N) {
@@ -293,25 +334,102 @@ tau <- 0.025  # Assuming a depreciation rate
 # Calculate the capital stock K_hat
 data <- data %>%
   mutate(
-    K_hat_lag = lag(K_hat, 1),             # capital stock in the previous period
-    I_hat_lag = lag(I_hat, 1),             # investment in the previous period
-    epsilon_I_lag = lag(epsilon_I, 1),     # investment shock in the previous period
-    K_hat = (1 - tau) * K_hat_lag + tauI_hat_lag + tau *  epsilon_k[t]
+    K_hat_lag[t]= lag(K_hat, 1),             # capital stock in the previous period
+    I_hat_lag[t] = lag(I_hat, 1),             # investment in the previous period
+    epsilon_I_lag[t]= lag(epsilon_I, 1),     # investment shock in the previous period
+    K_hat[t] = (1 - tau) * K_hat_lag + tauI_hat_lag + tau *  epsilon_k[t]
   )
 
 # Handle the initial value for K_hat as it won't have a lagged value available
-data$K_hat[1] <- initial_value  # initial_value should be replaced with actual initial capital stock
+
 ```
+
+
+```{r}
+
+# Simulate a persistence parameter from the Beta distribution
+rho_w<- rbeta(1, alpha_beta, beta_beta)
+
+# Define the length of your time series
+N <- 100  # Replace with your actual sample size
+
+# Define the standard deviation for the white noise shock
+# This should be known or estimated from your data; here I'll assume a placeholder value
+sigma_eta_w <- 1  # Replace with the actual standard deviation of your white noise process
+
+# Generate an IID white noise shock series
+eta_w <- rnorm(N, mean = 0, sd = sigma_eta_w)
+
+# Initialize your series
+epsilon_w <- numeric(N)
+epsilon_w[1] <- eta_w[1]  # You could start with the first shock or with a different initial value
+
+# Simulate the AR(1) process
+for(t in 2:N) {
+  epsilon_w[t] <- rho_w * epsilon_w[t-1] + eta_w[t]
+}
+
+```
+
 
 ```{r}
 library(dplyr)
 
-# Assuming 'data' is a dataframe with the following columns:
-# pi_hat_t for the current inflation rate
-# pi_star for the target inflation rate
-# k_t_hat for the rental rate on capital
-# w_t_hat for the real wage
-# eta_p_t for the shock term
+# Constants for the coefficients
+Beta <- 0.99    # Discount factor
+gamma_w <- 0.763  # Weight on lagged wage inflation
+zatza_ws <- 0.6      # Slope parameter of the wage Phillips curve
+lambda_w <- 0.5  # Weight on labor productivity
+h <- 0.573       # Habit formation parameter in consumption
+data <- data %>%
+  arrange(time) %>%  # Make sure the data is in time order
+  mutate(
+    w_hat_t_lag1[t] = lag(W_hat, 1),
+    w_hat_t_plus1_expected[t] = lag(W_hat, 1) - lag(W_hat, 2) + lag(W_hat, 1),
+    pi_hat_t_plus1_expected[t] = lag(pi_hat_t, 1) - lag(pi_hat_t, 2) + lag(pi_hat_t, 1),
+    pi_hat_t_lag1[t] = lag(pi_hat_t, 1),
+    C_hat_t_lag1[t]= lag(C_hat_t, 1),
+    pi_star[t] = pi_hat_t,  # Assuming current period's inflation is the target, replace with actual target if different
+
+    # Wage-setting equation using the new definitions and provided variable names
+    w_hat_t_new[t] = (Beta / (1 + Beta)) * w_hat_t_plus1_expected +
+                  (1 / (1 + Beta)) * w_hat_t_lag1 +
+                  (Beta / (1 + Beta)) * (pi_hat_t_plus1_expected - pi_star) +
+                  ((1+(Beta*gamma_w ))/ (1 + Beta)) * (pi_hat_t_lag1-pi_star) -
+                  (1 / (1 + Beta)) * ((1 - (Beta * zatza_ws) * (1 - zatza_ws)) / 
+                    (1 - ((1 - lambda_w) * sigma_L) / lambda_w) * zatza_ws) *
+                    (w_hat_t_lag1 - sigma_L * L_hat_t - 
+                     (1 / (1 - h)) * (C_hat_t - h * C_hat_t_lag1) +
+                     epsilon_l[t]) + epsilon_w[t]# eta_w_t needs to be defined or calculated
+  )
+
+```
+```{r}
+
+# Simulate a persistence parameter from the Beta distribution
+rho_pi <- rbeta(1, alpha_beta, beta_beta)
+
+# Define the length of your time series
+N <- 100  # Replace with your actual sample size
+
+# Define the standard deviation for the white noise shock
+# This should be known or estimated from your data; here I'll assume a placeholder value
+sigma_eta_pi <- 1  # Replace with the actual standard deviation of your white noise process
+
+# Generate an IID white noise shock series
+eta_pi<- rnorm(N, mean = 0, sd = sigma_eta_pi)
+
+# Initialize your series
+epsilon_pi <- numeric(N)
+epsilon_pi[1] <- eta_l[1]  # You could start with the first shock or with a different initial value
+
+# Simulate the AR(1) process
+for(t in 2:N) {
+  epsilon_pi[t] <- rho_pi * epsilon_pi[t-1] + eta_pi[t]
+}
+```
+
+```{r}
 
 # Constants for the coefficients
 Beta <- 0.99    # Discount factor
@@ -323,56 +441,14 @@ alpha_k <- 0.3  # replace with actual value from your model
 data <- data %>%
   arrange(time) %>% # Replace 'time' with your actual time variable
   mutate(
-    pi_hat_t_lag1 = lag(pi_hat_t, 1),
-    E_pi_hat_t_plus1 = ((pi_hat_t_lag1-lag(pi_hat_t, 2))+ pi_hat_t_lag1), # Expected future inflation
+    pi_hat_t_lag1[t] = lag(pi_hat_t, 1),
+    E_pi_hat_t_plus1[t] = ((pi_hat_t_lag1-lag(pi_hat_t, 2))+ pi_hat_t_lag1), # Expected future inflation
 
     # Phillips curve equation
-    pi_hat_t_new = (Beta / (1 + Beta * gamma_p)) * (E_pi_hat_t_plus1 - pi_star) +(gamma_p / (1 + Beta * gamma_p)) * (pi_hat_t_lag1 - pi_star) +  (1 / (1 + Beta * gamma_p)) * (1 - Beta * zata_ps) * (1 - zata_ps) / zata_ps *(alpha_k * k_t_hat + (1 - alpha_k) * w_t_hat - e_a_t - (1 - alpha_k) * eta_p_t)
+    pi_hat_t_new[t] = (Beta / (1 + Beta * gamma_p)) * (E_pi_hat_t_plus1 - pi_star) +(gamma_p / (1 + Beta * gamma_p)) * (pi_hat_t_lag1 - pi_star) +  (1 / (1 + Beta * gamma_p)) * (1 - Beta * zata_ps) * (1 - zata_ps) / zata_ps *(alpha_k * k_t_hat + (1 - alpha_k) * w_t_hat - epsilon_pi[t] - (1 - alpha_k) * gamma_p)+epsilon_p[t]
   )
-
 ```
 
-
-```{r}
-library(dplyr)
-
-# Assuming 'data' is a dataframe with the following columns:
-# w_hat_t for the current period's wage inflation
-# pi_hat_t for the current period's inflation
-# pi_hat_t_plus1_expected for the expected inflation in the next period
-# L_hat_t for the labor productivity in the current period
-# C_hat_t for the consumption in the current period
-# eta_w_t for the wage markup shock
-
-# Constants for the coefficients
-Beta <- 0.99    # Discount factor
-gamma_w <- 0.763  # Weight on lagged wage inflation
-xi_w <- 0.6      # Slope parameter of the wage Phillips curve
-lambda_w <- 0.5  # Weight on labor productivity
-h <- 0.573       # Habit formation parameter in consumption
-data <- data %>%
-  arrange(time) %>%  # Make sure the data is in time order
-  mutate(
-    w_hat_t_lag1 = lag(W_hat, 1),
-    w_hat_t_plus1_expected = lag(W_hat, 1) - lag(W_hat, 2) + lag(W_hat, 1),
-    pi_hat_t_plus1_expected = lag(pi_hat_t, 1) - lag(pi_hat_t, 2) + lag(pi_hat_t, 1),
-    pi_hat_t_lag1 = lag(pi_hat_t, 1),
-    C_hat_t_lag1 = lag(C_hat_t, 1),
-    pi_star = pi_hat_t,  # Assuming current period's inflation is the target, replace with actual target if different
-
-    # Wage-setting equation using the new definitions and provided variable names
-    w_hat_t_new = (Beta / (1 + Beta)) * w_hat_t_plus1_expected +
-                  (1 / (1 + Beta)) * w_hat_t_lag1 +
-                  (Beta / (1 + Beta)) * (pi_hat_t_plus1_expected - pi_star) +
-                  (gamma_w / (1 + Beta)) * (pi_hat_t_lag1 - pi_star) -
-                  (1 / (1 + Beta)) * ((1 - (Beta * xi_w) * (1 - xi_w)) / 
-                    (1 - ((1 - lambda_w) * sigma_L) / lambda_w) * xi_w) *
-                    (w_hat_t_lag1 - sigma_L * L_hat_t - 
-                     (1 / (1 - h)) * (C_hat_t - h * C_hat_t_lag1) +
-                     eta_w_t)  # eta_w_t needs to be defined or calculated
-  )
-
-```
 ```{r}
 # rho_L is the autoregressive coefficient for the labor shock process
 rho_L <- 0.9  # Replace with the actual estimated value for rho_L
@@ -398,7 +474,7 @@ for(t in 2:N) {
 # r_k_hat_t (rental rate of capital deviation), and K_hat_lag (lagged capital deviation)
 
 # Calculate L_hat_t based on the given formula
-L_hat_t <- -w_hat_t + (1 + psi) * r_k_hat_t + K_hat_lag
+L_hat_t[t] <- -w_hat_t + (1 + psi) * r_k_hat_t + K_hat_lag
 
 # Note that you will need actual time series data for w_hat_t, r_k_hat_t, and K_hat_lag.
 # Also, psi should be a predefined constant in your model.
@@ -419,8 +495,8 @@ psi <- 1.5 # Example value, replace with the actual value from your model
 data <- data %>%
   arrange(time) %>% # Replace 'time' with your actual time variable
   mutate(
-    K_hat_t_lag1 = lag(K_hat_t, 1), # Create lagged capital stock variable
-    L_hat_t = -w_hat_t + (1 + psi) * r_k_hat_t + K_hat_t_lag1
+    K_hat_t_lag1[t] = lag(K_hat_t, 1), # Create lagged capital stock variable
+    L_hat_t[t] = -w_hat_t + (1 + psi) * r_k_hat_t + K_hat_t_lag1
   )
 
 # After running this code, data will now include the new column L_hat_t with the calculated labor.
@@ -452,98 +528,185 @@ for (t in 2:N) {
   epsilon_G[t] <- rho_G * epsilon_G[t-1] + eta_G[t]
 }
 
-# Add this shock to the data
-data$epsilon_G <- epsilon_G
-
-data <- data %>%
-  mutate(
-    G_hat_t_expected = rho_G * lag(G_hat_t, 1) + eta_G_t,  # G_hat_t_expected needs to be computed or forecasted
-    yhat = (1 - (tau * Ky) - Gy) * C_hat_t + (tau * Ky) * i_hat_t + Gy * G_hat_t_expected
-  )
-
 
 ```
 ```{r}
-# Constants for the autoregressive process
-rho_G <- 0.949  # Autoregressive coefficient for the government spending shock
+# Assuming that 'data' is a dataframe that contains the columns 'C_hat_t' for consumption deviation, 
+# 'I_hat_t' for investment deviation, and 'epsilon_G_t' for government spending shock.
+# Also, 'pi_k' and 'g_s' are constants that need to be defined.
 
-# Assuming 'data' is a dataframe with the following column:
-# G_hat_t is the government spending shock at time t
-# eta_G_t is the random shock at time t to government spending
+# Define the constants 'pi_k' and 'g_s'
+pi_k <- 0.3  # Replace with the actual value for pi_k
+g_s <- 0.2   # Replace with the actual value for g_s
 
-# Simulate or calculate the shock for government spending
+# Compute Y_hat_t
 data <- data %>%
   mutate(
-    eta_G_t = rnorm(n(), mean = 0, sd = sigma_G),  # Replace sigma_G with the actual standard deviation for the shock
-    G_hat_t_lag1 = lag(G_hat_t, 1),  # Lagged value of government spending shock
-    G_hat_t_expected = rho_G * G_hat_t_lag1 + eta_G_t  # AR(1) process for expected government spending shock
+    Y_hat_t[t] = (1 - pi_k - g_s) * C_hat_t + pi_k * I_hat_t + g_s *epsilon_G[t]
   )
 
 ```
+
 ```{r}
 library(dplyr)
 
-# Assuming 'data' is a dataframe that contains columns:
-# R_hat_lag for the lagged nominal interest rate
-# pi_hat_t for the current period's inflation rate
-# pi_hat_t_lag1 for the lagged inflation rate
-# Y_hat_t for the current period's output gap
-# Y_hat_t_lag1 for the lagged output gap
-# eta_R_t for the interest rate shock
-# Parameters (example values, replace with actual estimates)
-rho <- 0.85         # Degree of interest rate smoothing
-r_pi <- 1.5         # Reaction to inflation deviation from target
-r_Y <- 0.5          # Reaction to output gap deviation from target
+# Assuming that 'data' is a dataframe that contains the columns w_hat_t, r_k_hat_t, and K_hat_lag1,
+# and psi is already defined in your environment.
+# Here's how you'd calculate L_hat_t according to your equation:
 
 data <- data %>%
   mutate(
-    pi_hat_lag = lag(pi_hat),
-    Y_hat_lag = lag(Y_hat),
+    L_hat_t[t] = -w_hat_t + (1 + psi) * r_k_hat_t + K_hat_lag1
+  )
+
+```
+```{r}
+
+# Define the length of your time series
+N <- 100  # Replace with your actual sample size
+
+# Define the standard deviation for the white noise shock
+# This should be known or estimated from your data; here I'll assume a placeholder value
+sigma_eta_pi_star <- 1  # Replace with the actual standard deviation of your white noise process
+
+# Generate an IID white noise shock series
+eta_pi_star <- rnorm(N, mean = 0, sd = sigma_eta_pi_star)
+
+# Initialize your series
+epsilon_pi_star <- numeric(N)
+epsilon_pi_star[1] <- eta_pi_star[1]  # You could start with the first shock or with a different initial value
+
+# Simulate the AR(1) process
+for(t in 2:N) {
+  epsilon_pi_star[t] <- rho_pi_star * epsilon_pi_star[t-1] + eta_pi_star[t]
+}
+
+```
+```{r}
+
+data <- data %>%
+  mutate(
+    pi_hat_lag[t] = lag(pi_hat_t),
+    pi_star_lag[t]= lag(pi_star_t),
+    Y_hat_lag[t] = lag(Y_hat_t),
+    Y_star_lag[t]= lag(Y_star),
 
     # Taylor rule equation
-    R_hat = pi_hat +
-            rho * R_hat_lag +
-            (1 - rho) * (r_pi * (pi_hat - pi_star) + r_Y * (Y_hat - Y_star)) +
-            r_pi * (pi_hat_lag - pi_star) + r_Y * (Y_hat_lag - Y_star) +
-            eta_R
-  )
+    R_hat_t[t] = pi_star_t + 
+              rho * (R_hat_lag - pi_star_lag) +
+              (1 - rho) * (r_pi * (pi_hat_t - pi_star_lag) + r_Y * (Y_hat_t - Y_star_lag)) +
+              r_pi * (pi_hat_lag - pi_star_lag) +
+              r_Y * (Y_hat_lag - Y_star_lag) + epsilon_pi_star[t]
+              )
 ```
 ```{r}
-library(dplyr)
+# Generate the IID white noise processes for the markup shocks
+epsilon_p <- rnorm(N, mean = 0, sd = sigma_e_p) # Price markup shocks
+epsilon_w <- rnorm(N, mean = 0, sd = sigma_e_w) # Wage markup shocks
+epsilon_q <- rnorm(N, mean = 0, sd = sigma_e_q) # Equity price markup shocks
 
-# Assuming 'data' is a dataframe that contains columns:
-# pi_hat_t for the current period's inflation rate
-# R_hat_t_lag1 for the lagged nominal interest rate
-# pi_star_t for the target inflation rate
-# Y_hat_t for the current period's output gap
-# Y_star for the potential output
-# eta_R_t for the temporary interest rate shock
-# eta_pi_star_t for the shock to the inflation objective
+```
+```{r}
+ 
+# Initialize the dataframe with the first 4 rows set to specific values
+my_data <- data.frame(
+    time = 1:4,
+    C_hat = rep(1, 4),
+    I_hat = rep(1, 4),
+    R_hat = rep(1, 4),
+    epsilon_c = rep(.2, 4),
+    expected_C_hat_next = rep(1, 4),
+    expected_R_hat_next = rep(1, 4)
+)
 
-# Parameters for the monetary policy rule
-rho <- 0.5  # Degree of interest rate smoothing
-r_pi <- 1.5  # Reaction to inflation deviation from target
-r_Y <- 0.5   # Reaction to output gap deviation from target
+# Calculate lags and expected next values for the initial rows
+my_data$C_hat_lag1 = c(NA, lag(my_data$C_hat)[-length(my_data$C_hat)])
+my_data$I_hat_lag1 = c(NA, lag(my_data$I_hat)[-length(my_data$I_hat)])
+my_data$expected_C_hat_next = calculate_ema_4th_order(my_data$C_hat, n=4)$expected_next
+my_data$expected_R_hat_next = calculate_ema_4th_order(my_data$R_hat, n=4)$expected_next
 
-# Adjusting the target inflation rate for the shock
-data <- data %>%
-  mutate(
-    pi_star_t_adjusted = pi_star_t + eta_pi_star_t
-  )
+# Preallocate the dataframe to have 104 rows
+additional_rows <- 100  # 104 total rows - the 4 initial rows
+# Append additional rows initialized to NA (or 0, based on your model requirements)
+my_data <- rbind(my_data, data.frame(
+    time = 5:104,
+    C_hat = rep(NA, additional_rows),
+    I_hat = rep(NA, additional_rows),
+    R_hat = rep(NA, additional_rows),
+    epsilon_c = rep(NA, additional_rows),
+    expected_C_hat_next = rep(NA, additional_rows),
+    expected_R_hat_next = rep(NA, additional_rows),
+))
 
-# Calculate the nominal interest rate using the Taylor rule with shocks
-data <- data %>%
-  mutate(
-    R_hat_t_new = pi_hat_t +
-                  rho * R_hat_t_lag1 +
-                  (1 - rho) * (r_pi * (pi_hat_t - pi_star_t_adjusted) +
-                  r_Y * (Y_hat_t - Y_star)) +
-                  eta_R_t  # Including the temporary interest rate shock
-  )
+# Check if the rbind was successful
+print(head(my_data))
+
+
+for (i in 5:104) {
+    # Generate a new shock value for epsilon_c for the current row
+    eta_c <- rnorm(1, mean = 0, sd = sigma_eta_c)
+    my_data$epsilon_c[i] <- rho_c * my_data$epsilon_c[i-1] + eta_c
+    
+    # Update 'C_hat', 'I_hat', and 'R_hat' for the current row based on your model's logic
+    my_data$C_hat[i] <-   h / (1 + h) * C_hat_lag1[i] + 1 / (1 + h)    *expected_C_hat_next[i] +
+                (sigma_c - 1) / (sigma_c * (1 + lambda) * (1 + h)) * (i_hat[i] - i_hat_lag1[i]) -
+                (1 - h) / ((1 + h) * phi * sigma_c) * (R_hat - expected_R_hat_next[i]) +
+                (1 - h) / ((1 + h) * sigma_c)* my_data$epsilon_c[i]
+    
+    my_data$I_hat[i] <- my_data$I_hat[i-1]  # Adjust as necessary
+    my_data$R_hat[i] <- my_data$R_hat[i-1]  # Adjust as necessary
+}
 
 ```
 
+```{r}
 
+# Initialize the dataframe with the first 4 rows set to 0
+my_data <- data.frame(
+    time = 1:4,
+    C_hat = rep(0, 4),
+    I_hat = rep(0, 4),
+    R_hat = rep(0, 4),
+    epsilon_c = rep(0, 4)
+)
+
+# Preallocate the dataframe to have 104 rows
+additional_rows <- 100  # 104 total rows - the 4 initial rows
+# Append additional rows initialized to NA (or 0, based on your model requirements)
+my_data <- rbind(my_data, data.frame(
+    time = 5:104,
+    C_hat = rep(NA, additional_rows),
+    I_hat = rep(NA, additional_rows),
+    R_hat = rep(NA, additional_rows),
+    epsilon_c = rep(NA, additional_rows)
+))
+for (i in 5:104) {
+    # Generate a new shock value for epsilon_c for the current row
+    eta_c <- rnorm(1, mean = 0, sd = sigma_eta_c)
+    my_data$epsilon_c[i] <- rho_c * my_data$epsilon_c[i-1] + eta_c
+    
+    # Update 'C_hat', 'I_hat', and 'R_hat' for the current row based on your model's logic
+    my_data$C_hat[i] <- h / (1 + h) * my_data$C_hat[i-1] +
+                        1 / (1 + h) * (my_data$I_hat[i-1] + my_data$R_hat[i-1]) +
+                        (1 - h) / ((1 + h) * sigma_c) * my_data$epsilon_c[i]
+    
+    my_data$I_hat[i] <- my_data$I_hat[i-1]  # Adjust as necessary
+    my_data$R_hat[i] <- my_data$R_hat[i-1]  # Adjust as necessary
+}
+```
+
+
+
+
+
+
+
+
+
+
+
+
+,
 
 
 
