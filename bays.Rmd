@@ -14,9 +14,9 @@ alpha =0.3
 psi=1/.169
 gamma_p=.469
 gamma_w=.763
-lamda_w=.5
-zata_ps=.908
-zatza_ws=0.737
+lambda_w=.5
+zeta_ps=.908
+zeta_ws=0.737
 sigma_L=2.4
 sigma_c=1.353
 h=0.573
@@ -29,20 +29,22 @@ Cy=0.6
 ky=Invy/tao
 gy=1-Cy-Invy
 r_pi=0.14
-ry=0.099
+r_y=0.099
 Ry_delta=0.159
 ro=0.961
 r_pi=1.684
-ro_el=0.889
-ro_ea=0.823
-ro_eb=0.855
-ro_G=0.949
-ro_pi=0.924
- roei=0.927
-ro_er=0
-ro_lamdaw=0
-ro_q=0
-ro_lamda_p=0
+rho_el=0.889
+rho_ea=0.823
+rho_eb=0.855
+rho_G=0.949
+rho_pi=0.924
+ rh_i=0.927
+rho_er=0
+r_k_star <- (1 / Beta) - 1 + tao
+rho_lamdaw=0
+rho_q=0
+rho_lamda_p=0
+rho_L <-   0.9
 sigma_e_L=3.52
 sigma_e_a=.598
 sigma_e_b=.336
@@ -52,11 +54,10 @@ sigma_er=0.081
 sigma_ei=0.085
 sigma_lamada_p=.16
 sigma_lamda_w=.289
-sigma_eq=.604
-
-
-
-
+sigma_e_q=.604
+sigma_e_i <- 3.52
+sigma_e_c<- 0.336
+alpha_k <- 0.3 
 
 ```
 ```{r}
@@ -118,8 +119,7 @@ calculate_ema_4th_order <- function(data, n=4) {
   return(list(ema = ema, expected_next = expected_next_ema))
 }
 
-```
-```{r}
+
 
 # Now, apply the calculate_ema_4th_order function to this lagged series
 # Assuming you have initialized your dataframe and it's being updated elsewhere in your simulation
@@ -150,7 +150,7 @@ alpha_beta <- ((1 - mean_beta) / sd_beta^2 - 1 / mean_beta) * mean_beta^2
 beta_beta <- alpha_beta * (1 / mean_beta - 1)
 
 # Simulate a persistence parameter from the Beta distribution
-rho_c <- rbeta(1, alpha_beta, beta_beta)
+rho_C <- rbeta(1, alpha_beta, beta_beta)
 
 # Define the length of your time series
 N <- 100  # Replace with your actual sample size
@@ -217,32 +217,28 @@ data <- data %>%
 ```{r}
 
 # Simulate a persistence parameter from the Beta distribution
-rho_q <- rbeta(1, alpha_beta, beta_beta)
+rho_Q<- rbeta(1, alpha_beta, beta_beta)
 
 # Define the length of your time series
 N <- 100  # Replace with your actual sample size
 
 # Define the standard deviation for the white noise shock
 # This should be known or estimated from your data; here I'll assume a placeholder value
-sigma_eta_q<- 0.604  # Replace with the actual standard deviation of your white noise process
+sigma_eta_Q<- 0.604  # Replace with the actual standard deviation of your white noise process
 
 # Generate an IID white noise shock series
-eta_q <- rnorm(N, mean = 0, sd = sigma_eta_q)
+eta_Q <- rnorm(N, mean = 0, sd = sigma_eta_Q)
 
 # Initialize your series
-epsilon_q <- numeric(N)
-epsilon_q[1] <- eta_q[1]  # You could start with the first shock or with a different initial value
+epsilon_Q <- numeric(N)
+epsilon_Q[1] <- eta_Q[1]  # You could start with the first shock or with a different initial value
 
-# Simulate the AR(1) process
-for(t in 2:N) {
-  epsilon_q[t] <- rho_q * epsilon_q[t-1] + eta_q[t]
-}
 ```
 
 ```{r}
 
 # Calculate the adjusted rental rate of capital (r_k_star)
-r_k_star <- (1 / Beta) - 1 + tau
+r_k_star <- (1 / Beta) - 1 + tao
 
 # Add expected future value of the output gap to the dataframe
 data <- data %>%
@@ -262,26 +258,18 @@ data <- data %>%
 ```{r}
 
 # Simulate a persistence parameter from the Beta distribution
-rho_i <- rbeta(1, alpha_beta, beta_beta)
+rho_I <- rbeta(1, alpha_beta, beta_beta)
 
 # Define the length of your time series
 N <- 100  # Replace with your actual sample size
 
 # Define the standard deviation for the white noise shock
 # This should be known or estimated from your data; here I'll assume a placeholder value
-sigma_eta_i <- 3.52  # Replace with the actual standard deviation of your white noise process
+sigma_eta_I <- 3.52  # Replace with the actual standard deviation of your white noise process
 
 # Generate an IID white noise shock series
-eta_i <- rnorm(N, mean = 0, sd = sigma_eta_i)
+eta_I <- rnorm(N, mean = 0, sd = sigma_eta_I)
 
-# Initialize your series
-epsilon_i <- numeric(N)
-epsilon_i[1] <- eta_i[1]  # You could start with the first shock or with a different initial value
-
-# Simulate the AR(1) process
-for(t in 2:N) {
-  epsilon_i[t] <- rho_i * epsilon_i[t-1] + eta_i[t]
-}
 
 ```
 
@@ -302,26 +290,15 @@ data <- data %>%
 ```{r}
 
 # Simulate a persistence parameter from the Beta distribution
-rho_k <- rbeta(1, alpha_beta, beta_beta)
+rho_K <- rbeta(1, alpha_beta, beta_beta)
 
 # Define the length of your time series
 N <- 100  # Replace with your actual sample size
 
 # Define the standard deviation for the white noise shock
 # This should be known or estimated from your data; here I'll assume a placeholder value
-sigma_eta_k <- 1  # Replace with the actual standard deviation of your white noise process
+sigma_eta_K <- 1  # Replace with the actual standard deviation of your white noise process
 
-# Generate an IID white noise shock series
-eta_k <- rnorm(N, mean = 0, sd = sigma_eta_k)
-
-# Initialize your series
-epsilon_k <- numeric(N)
-epsilon_k[1] <- eta_k[1]  # You could start with the first shock or with a different initial value
-
-# Simulate the AR(1) process
-for(t in 2:N) {
-  epsilon_k[t] <- rho_k * epsilon_k[t-1] + eta_k[t]
-}
 
 ```
 
@@ -396,11 +373,11 @@ data <- data %>%
                   (1 / (1 + Beta)) * w_hat_t_lag1 +
                   (Beta / (1 + Beta)) * (pi_hat_t_plus1_expected - pi_star) +
                   ((1+(Beta*gamma_w ))/ (1 + Beta)) * (pi_hat_t_lag1-pi_star) -
-                  (1 / (1 + Beta)) * ((1 - (Beta * zatza_ws) * (1 - zatza_ws)) / 
+                  (1 / (1 + Beta)) * ((1 - (Beta * zatza_ws) * (1 - zatza_ws))/ 
                     (1 - ((1 - lambda_w) * sigma_L) / lambda_w) * zatza_ws) *
                     (w_hat_t_lag1 - sigma_L * L_hat_t - 
                      (1 / (1 - h)) * (C_hat_t - h * C_hat_t_lag1) +
-                     epsilon_l[t]) + epsilon_w[t]# eta_w_t needs to be defined or calculated
+                     my_data$e[t]) + epsilon_w[t]# eta_w_t needs to be defined or calculated
   )
 
 ```
@@ -600,6 +577,25 @@ data <- data %>%
               )
 ```
 ```{r}
+calculate_running_average <- function(data, n = 3) {
+  # data: Numeric vector
+  # n: window size for the moving average
+  
+  # Calculate the running average
+  running_avg <- stats::filter(data, rep(1/n, n), sides = 2)
+  
+  return(running_avg)
+}
+
+# Example usage
+data_vector <- c(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
+running_avg_result <- calculate_running_average(data_vector, 3)
+print(running_avg_result)
+library(zoo)
+
+```
+
+```{r}
 # Generate the IID white noise processes for the markup shocks
 epsilon_p <- rnorm(N, mean = 0, sd = sigma_e_p) # Price markup shocks
 epsilon_w <- rnorm(N, mean = 0, sd = sigma_e_w) # Wage markup shocks
@@ -607,55 +603,185 @@ epsilon_q <- rnorm(N, mean = 0, sd = sigma_e_q) # Equity price markup shocks
 
 ```
 ```{r}
- 
-# Initialize the dataframe with the first 4 rows set to specific values
+# Initialize the dataframe with the first 4 rows set to 1
 my_data <- data.frame(
-    time = 1:4,
-    C_hat = rep(1, 4),
-    I_hat = rep(1, 4),
-    R_hat = rep(1, 4),
-    epsilon_c = rep(.2, 4),
-    expected_C_hat_next = rep(1, 4),
-    expected_R_hat_next = rep(1, 4)
+    time = 1:104,
+    C_hat = rep(10000, 104),
+    L_hat=rep(10000,104),
+    I_hat = rep(10000, 104),
+    K_hat=rep(10000,104),
+    Pi_hat=rep(1,104),
+    Y_hat=rep(4000,104),
+    R_hat = rep(7,104),
+    W_hat=rep(10000,104),
+    R_k=rep(1,104),
+    Q_hat = rep(10000,104),
+     pi_bar=rep(1,104),
+    YP_hat=my_data$Pi_hat/my_data$W_hat,
+    epsilon_C = rep(1, 104),
+    epsilon_Q = rep(1, 104),
+     epsilon_I = rep(1, 104),
+    epsilon_W = rep(1, 104),
+    epsilon_R = rep(1, 104),
+    epsilon_Pi=rep(1,104),
+    epsilon_L=rep(1,104),
+    epsilon_G=rep(1,104),
+     epsilon_R=rep(1,104),
+     epsilon_pitwo=rep(1,104),
+    expected_RK_hat_next=rep(10000,104),
+     expected_I_hat_next=rep(10000,104),
+     expected_W_hat_next=rep(10000,104),
+    expected_C_hat_next=rep(10000,104),
+    expected_Q_hat_next = rep(1000, 104),
+    expected_Pi_hat_next=rep(1,104),
+    expected_R_hat_next = rep(7, 104),
+    C_hat_lag1 = rep(10000, 104),  # Lagged values for the first row would be NA
+    I_hat_lag1 = rep(10000, 104),# Lagged values for the first row would be NA
+    Q_hat_lag1 = rep(10000, 104),
+    W_hat_lag1=rep(10000,104),
+     R_hat_lag1 = rep(7,104),
+    R_k_hat_lag1=rep(1,104),
+    R_hat_lag1 = rep(7,104),
+    Y_hat_lag1=rep(1,104),
+    YP_hat_lag1=rep(1,104),
+    Pi_bar_lag1=rep(1,104),
+     Pi_hat_lag1=rep(1,104),
+    K_hat_lag1 = rep(10000,104)
 )
 
-# Calculate lags and expected next values for the initial rows
-my_data$C_hat_lag1 = c(NA, lag(my_data$C_hat)[-length(my_data$C_hat)])
-my_data$I_hat_lag1 = c(NA, lag(my_data$I_hat)[-length(my_data$I_hat)])
-my_data$expected_C_hat_next = calculate_ema_4th_order(my_data$C_hat, n=4)$expected_next
-my_data$expected_R_hat_next = calculate_ema_4th_order(my_data$R_hat, n=4)$expected_next
-
-# Preallocate the dataframe to have 104 rows
-additional_rows <- 100  # 104 total rows - the 4 initial rows
-# Append additional rows initialized to NA (or 0, based on your model requirements)
-my_data <- rbind(my_data, data.frame(
-    time = 5:104,
-    C_hat = rep(NA, additional_rows),
-    I_hat = rep(NA, additional_rows),
-    R_hat = rep(NA, additional_rows),
-    epsilon_c = rep(NA, additional_rows),
-    expected_C_hat_next = rep(NA, additional_rows),
-    expected_R_hat_next = rep(NA, additional_rows),
-))
-
-# Check if the rbind was successful
-print(head(my_data))
+```
 
 
+```{r}
+# Before the loop, call the calculate_ema_4th_order function to get expected values
 for (i in 5:104) {
-    # Generate a new shock value for epsilon_c for the current row
-    eta_c <- rnorm(1, mean = 0, sd = sigma_eta_c)
-    my_data$epsilon_c[i] <- rho_c * my_data$epsilon_c[i-1] + eta_c
+    # Update lagged values
+    my_data$C_hat_lag1[i] <- my_data$C_hat[i-1]
+    my_data$I_hat_lag1[i] <- my_data$I_hat[i-1]
+    my_data$Q_hat_lag1[i] <- my_data$Q_hat[i-1] # Noting the case sensitivity
+    my_data$R_k_hat_lag1[i] <- my_data$R_k[i-1]
+    my_data$Pi_hat_lag1[i] <- my_data$Pi_hat[i-1]
+    my_data$K_hat_lag1[i] <- my_data$K_hat[i-1]
+    my_data$W_hat_lag1[i] <- my_data$W_hat[i-1]
+    my_data$Pi_bar_lag1[i] <- my_data$pi_bar[i-1]
+    my_data$Y_hat_lag1[i] <- my_data$Y_hat[i-1]
+    my_data$YP_lag1[i] <- my_data$YP_hat[i-1]
     
-    # Update 'C_hat', 'I_hat', and 'R_hat' for the current row based on your model's logic
-    my_data$C_hat[i] <-   h / (1 + h) * C_hat_lag1[i] + 1 / (1 + h)    *expected_C_hat_next[i] +
-                (sigma_c - 1) / (sigma_c * (1 + lambda) * (1 + h)) * (i_hat[i] - i_hat_lag1[i]) -
-                (1 - h) / ((1 + h) * phi * sigma_c) * (R_hat - expected_R_hat_next[i]) +
-                (1 - h) / ((1 + h) * sigma_c)* my_data$epsilon_c[i]
     
-    my_data$I_hat[i] <- my_data$I_hat[i-1]  # Adjust as necessary
-    my_data$R_hat[i] <- my_data$R_hat[i-1]  # Adjust as necessary
+     # Generate new shock value for epsilon_c for the current row
+    eta_c <- rnorm(1, mean = 0, sd = sigma_eta_C)
+    
+# Simulate a persistence parameter from the Beta distribution
+    rho_c<- rbeta(1, alpha_beta, beta_beta)
+     my_data$epsilon_C[i] <- rho_c * my_data$epsilon_C[i-1] + eta_c
+       # Generate new shock value for epsilon_q for the current row
+     epsilon_Q<- rnorm(1, mean = 0, sd = sigma_e_q)
+       my_data$epsilon_Q[i] <- epsilon_Q
+       eta_I<- rnorm(1, mean = 0, sd = sigma_e_i)
+       rho_q<- rbeta(1, alpha_beta, beta_beta)
+       my_data$epsilon_I[i] <- rho_q * my_data$epsilon_I[i-1] + eta_I
+      eta_L<- rnorm(1, mean = 0, sd = sigma_e_L)
+      rho_L<- rbeta(1, alpha_beta, beta_beta)
+       my_data$epsilon_L[i] <- rho_L * my_data$epsilon_L[i-1] + eta_L
+       epsilon_W <- rnorm(1, mean = 0, sd = sigma_e_w)
+       my_data$epsilon_W[i]=epsilon_W
+      epsilon_p <- rnorm(1, mean = 0, sd = sigma_e_p)
+      my_data$epsilon_Pi[i]=epsilon_p
+       my_data$epsilon_L[i] <- rho_L * my_data$epsilon_L[i-1] + eta_L
+        rho_pi<- rbeta(1, alpha_beta, beta_beta)
+        eta_pitwo<- rnorm(1, mean = 0, sd = sigma_pi_bar)
+       my_data$epsilon_pitwo[i] <- rho_pi * my_data$epsilon_pitwo[i-1] + eta_pitwo
+        eta_g<- rnorm(1, mean = 0, sd = sigma_e_q)
+        rho_g<- rbeta(1, alpha_beta, beta_beta)
+       my_data$epsilon_pitwo[i] <- rho_g * my_data$epsilon_pitwo[i-1] + eta_g
+        epsilon <- rnorm(1, mean = 0, sd = sigma_e_w)
+       my_data$epsilon_W[i]=epsilon_W
+       
+       
+    # Ensure the calculate_ema_4th_order function is defined to return a list with expected_next
+    my_data$expected_C_hat_next[i-1] <- calculate_ema_4th_order(na.omit(my_data$C_hat[1:(i-1)]), 4)$expected_next
+    my_data$expected_I_hat_next[i-1] <- calculate_ema_4th_order(na.omit(my_data$I_hat[1:(i-1)]), 4)$expected_next
+    my_data$expected_Q_hat_next[i-1] <- calculate_ema_4th_order(na.omit(my_data$Q_hat[1:(i-1)]), 4)$expected_next
+    my_data$expected_W_hat_next[i-1] <- calculate_ema_4th_order(na.omit(my_data$W_hat[1:(i-1)]), 4)$expected_next
+    my_data$expected_Pi_hat_next[i-1] <- calculate_ema_4th_order(na.omit(my_data$Pi_hat[1:(i-1)]), 4)$expected_next
+    my_data$expected_R_hat_next[i-1] <- calculate_ema_4th_order(na.omit(my_data$R_hat[1:(i-1)]), 4)$expected_next
+    # Add other expected next value calculations as necessary
+     # Calculate running averages up to the current index
+    if (i > 5) {  # Ensure there are enough data points to calculate a running average
+        window_size <- i  # Define your window size for the running average
+        # Calculate running average for C_hat using values up to the current index
+        my_data$pi_bar[i] <- tail(rollapply(my_data$Pi_hat[1:i], width = window_size, FUN = mean, align = "right", fill = 1), 1)
+        
+    
+    
+
+
+    # Now update 'C_hat' based on the updated logic
+    # Assuming h, lambda_w, phi are defined and calculated correctly
+    my_data$C_hat[i] <- (h / (1 + h))* my_data$C_hat_lag1[i] +
+                        (1 / (1 + h)) * my_data$expected_C_hat_next[i-1] +
+                        ((sigma_c - 1) / (sigma_c * (1 + lambda_w) * (1 + h))) * (my_data$I_hat[i] - my_data$expected_I_hat_next[i-1]) -
+                        (1 - h) / ((1 + h) * sigma_c) * (my_data$R_hat[i] - my_data$expected_Pi_hat_next[i-1]) +
+                        (1 - h) / ((1 + h) * sigma_c) * my_data$epsilon_C[i]
+  # Output gap equation
+my_data$Q_hat[i] = -(my_data$R_hat[i] - my_data$expected_Pi_hat_next[i-1]) +
+        ((1-tao) / (1 - tao + r_k_star)) * my_data$expected_Q_hat_next[i-1] +
+        (my_data$R_k[i] / (1 - tao + r_k_star)) * my_data$expected_R_hat_next[i-1] + my_data$epsilon_Q[i]
+
+ my_data$I_hat[i] = (1 / (1 + Beta)) * my_data$I_hat_lag1[i] +   
+   (Beta / (1 + Beta)) * my_data$expected_I_hat_next[i-1] +
+          ((1/phi_uppercase)/(1+Beta))*my_data$Q_hat[i]+my_data$epsilon_I[i]
+ 
+  
+   my_data$K_hat[i]=(1-tao)*my_data$K_hat_lag1[i]+tao*my_data$I_hat_lag1[i]
+   +tao*my_data$epsilon_I[i-1]
+    
+   my_data$L_hat[i] = -my_data$W_hat[i] + (1 + psi) *my_data$R_hat[i]+ my_data$K_hat_lag1[i]
+   
+   my_data$Y_hat[i] = (1 - (tao*ky) - gy) * my_data$C_hat[i] + (tao*ky) * my_data$I_hat[i] + gy *my_data$epsilon_G[i]
+  
+   
+# Breaking down the calculation into parts
+parta <- (Beta / (1 + Beta * gamma_p)) * (my_data$expected_Pi_hat_next[i-1]-my_data$pi_bar[i])
+partb<- (gamma_p / (1 + Beta * gamma_p)) * (my_data$Pi_hat_lag1[i] -my_data$pi_bar[i]) # Check if this should be [i] or [i-1]
+partc <- 1/(1 - Beta * gamma_p)* (((1-Beta*zeta_ps)*(1-zeta_ps))/zeta_ps)*(alpha*my_data$R_hat[i]+(1-alpha)*my_data$W_hat[i]-my_data$epsilon_pitwo[i]-(1-alpha)*gamma_w) 
+parte <- my_data$epsilon_Pi[i]
+ 
+
+# Combine parts
+ my_data$Pi_hat[i]<- parta + partb + partc + parte + my_data$pi_bar[i] 
+
+    
+ 
+    # Taylor rule equation
+    my_data$R_hat[i] = my_data$pi_bar[i] + 
+              rho * (my_data$Pi_bar_lag1[i] - my_data$Pi_bar_lag1[i]) +
+              (1 - rho) * (r_pi * (my_data$Pi_hat_lag1[i] - my_data$Pi_bar_lag1[i])) + (r_pi * (my_data$Y_hat_lag1[i] - my_data$YP_hat_lag1[i]))+
+             ( r_pi * (my_data$Pi_hat[i] - my_data$pi_bar[i])-(my_data$Pi_hat_lag1[i]-my_data$Pi_bar_lag1[i])) +(r_y * (my_data$Y_hat[i] -my_data$YP_hat[i])-(my_data$Y_hat_lag1[i]-my_data$YP_hat_lag1[i]) ) + my_data$epsilon_R[i]
+
+
+    # Break down the equation into parts as before
+    part1 <- (Beta / (1 + Beta)) * my_data$expected_W_hat_next[i-1]
+    part2 <- (1 / (1 + Beta)) * my_data$W_hat_lag1[i]
+    part3 <- (Beta / (1 + Beta)) * (my_data$expected_Pi_hat_next[i-1] - 4)
+    part4 <- - ((1 + (Beta * gamma_w)) / (1 + Beta)) * (my_data$Pi_hat_lag1[i] - 4)
+    part5 <- (gamma_w / (1 + Beta)) * (my_data$expected_Pi_hat_next[i-1] - 4)
+
+    # Calculate the complex adjustment part
+    adjustment_factor <- -1*(1/(1+Beta))*((1 - (Beta * zeta_ws) * (1 - zeta_ws)) / (1 + ((1 - lambda_w) * sigma_L) / lambda_w) * zeta_ws)
+    complex_part <- adjustment_factor * (my_data$W_hat_lag1[i] - sigma_L * my_data$L_hat[i] - (1 / (1 - h)) * (my_data$C_hat[i] - (my_data$expected_C_hat_next[i-1] * h))) + my_data$epsilon_L[i]
+
+    # Combine all parts for the final calculation of W_hat
+    my_data$W_hat[i] <- part1 + part2 + part3 + part4 + part5 - complex_part + my_data$epsilon_W[i]
+     
+ 
+
+    
+    }
 }
+
+    
+
 
 ```
 
@@ -682,8 +808,8 @@ my_data <- rbind(my_data, data.frame(
 ))
 for (i in 5:104) {
     # Generate a new shock value for epsilon_c for the current row
-    eta_c <- rnorm(1, mean = 0, sd = sigma_eta_c)
-    my_data$epsilon_c[i] <- rho_c * my_data$epsilon_c[i-1] + eta_c
+    eta_c[i] <- rnorm(1, mean = 0, sd = sigma_eta_c)
+    my_data$epsilon_c[i] <- rho_c * my_data$epsilon_c[i-1] + eta_c[i]
     
     # Update 'C_hat', 'I_hat', and 'R_hat' for the current row based on your model's logic
     my_data$C_hat[i] <- h / (1 + h) * my_data$C_hat[i-1] +
