@@ -616,13 +616,13 @@ calculate_next_period_with_average_diff <- function(data) {
   }
   
   # Calculate the differences of the last 5 data points
-  diffs <- diff(tail(data, 5))
+  diffs <- diff(tail(data, 4))
   
   # Calculate the average difference
   avg_diff <- mean(diffs)
   
   # Predict the next period by adding the average difference to the last data point
-  next_period <- tail(data, 1) + avg_diff
+  next_period <- tail(data, 1)+(.18*avg_diff) 
   
   return(next_period)
 }
@@ -634,20 +634,19 @@ calculate_next_period_with_average_diff <- function(data) {
 my_data <- data.frame(
     time = 1:104,
     C_hat = rep(333, 104),
-    L_hat=rep(10000,104),
+    L_hat=rep(7,104),
     W_hat = rep(3, 104),
-    I_hat = rep(10000, 104),
+    I_hat = rep(35, 104),
      C_hat_lag1 = rep(333, 104),  # Lagged values for the firstrhow would be NA
-    I_hat_lag1 = rep(10000, 104),
-     expected_I_hat_next=rep(10000,104),
+    I_hat_lag1 = rep(35, 104),
+     expected_I_hat_next=rep(35,104),
      expected_W_hat_next=rep(3,104),
-    K_hat=rep(10000,104),
+    K_hat=rep(0,104),
     Pi_hat=rep(1,104),
     Y_hat=rep(2000,104),
     R_hat = rep(7,104),
-    W_hat=rep(500,104),
     R_k=rep(1,104),
-    Q_hat = rep(10000,104),
+    Q_hat = rep(1,104),
      pi_bar=rep(1,104),
     epsilon_C = rep(1, 104),
     epsilon_Q = rep(1, 104),
@@ -659,24 +658,23 @@ my_data <- data.frame(
     epsilon_G=rep(1,104),
     
      epsilon_pitwo=rep(1,104),
-    expected_RK_hat_next=rep(10000,104),
-    expected_L_hat_next=rep(10000,104),
+    expected_K_hat_next=rep(0,104),
+    expected_L_hat_next=rep(7,104),
     expected_C_hat_next=rep(333,104),
-    expected_Q_hat_next = rep(1000, 104),
+    expected_Q_hat_next = rep(10, 104),
     expected_Pi_hat_next=rep(1,104),
     expected_R_hat_next = rep(7, 104),
      expected_Y_hat_next = rep(2000, 104),
    # Lagged values for the firstrhow would be NA
-    Q_hat_lag1 = rep(10000, 104),
+    Q_hat_lag1 = rep(1, 104),
     W_hat_lag1=rep(3,104),
      R_hat_lag1 = rep(7,104),
-    R_k_hat_lag1=rep(1,104),
-    L_hat_lag1 = rep(7,104),
+    L_hat_lag1 = rep(1,104),
     Y_hat_lag1=rep(1,104),
     YP_hat_lag1=rep(1,104),
     Pi_bar_lag1=rep(1,104),
      Pi_hat_lag1=rep(1,104),
-    K_hat_lag1 = rep(10000,104)
+    K_hat_lag1 = rep(0,104)
 )
 my_data$YP_hat=(1+(my_data$Pi_hat/100))*my_data$Y_hat
 ```
@@ -687,7 +685,7 @@ for (i in 6:104) {
     my_data$C_hat_lag1[i] <- my_data$C_hat[i-1]
     my_data$I_hat_lag1[i] <- my_data$I_hat[i-1]
     my_data$Q_hat_lag1[i] <- my_data$Q_hat[i-1] # Noting the case sensitivity
-    my_data$R_k_hat_lag1[i] <- my_data$R_k[i-1]
+   
     my_data$Pi_hat_lag1[i] <- my_data$Pi_hat[i-1]
     my_data$K_hat_lag1[i] <- my_data$K_hat[i-1]
     my_data$W_hat_lag1[i] <- my_data$W_hat[i-1]
@@ -730,13 +728,13 @@ for (i in 6:104) {
        
        
     # Ensure the calculate_ema_4th_order function is defined to return a list with expected_next
-      my_data$expected_C_hat_next[i-1] <- calculate_next_period_with_average_diff(my_data$C_hat[(i-5):(i-1)])
-        my_data$expected_I_hat_next[i-1] <- calculate_next_period_with_average_diff(my_data$I_hat[(i-5):(i-1)])
-        my_data$expected_Q_hat_next[i-1] <- calculate_next_period_with_average_diff(my_data$Q_hat[(i-5):(i-1)])
-        my_data$expected_W_hat_next[i-1] <- calculate_next_period_with_average_diff(my_data$W_hat[(i-5):(i-1)])
-        my_data$expected_Pi_hat_next[i-1] <- calculate_next_period_with_average_diff(my_data$Pi_hat[(i-5):(i-1)])
-        my_data$expected_R_hat_next[i-1] <- calculate_next_period_with_average_diff(my_data$R_hat[(i-5):(i-1)])
-         my_data$expected_L_hat_next[i-1] <- calculate_next_period_with_average_diff(my_data$L_hat[(i-5):(i-1)])
+      my_data$expected_C_hat_next[i] <- calculate_next_period_with_average_diff(my_data$C_hat[(i-5):(i-1)])
+        my_data$expected_I_hat_next[i] <- calculate_next_period_with_average_diff(my_data$I_hat[(i-5):(i-1)])
+        my_data$expected_Q_hat_next[i] <- calculate_next_period_with_average_diff(my_data$Q_hat[(i-5):(i-1)])
+        my_data$expected_W_hat_next[i] <- calculate_next_period_with_average_diff(my_data$W_hat[(i-5):(i-1)])
+        my_data$expected_Pi_hat_next[i] <- calculate_next_period_with_average_diff(my_data$Pi_hat[(i-5):(i-1)])
+        my_data$expected_R_hat_next[i] <- calculate_next_period_with_average_diff(my_data$R_hat[(i-5):(i-1)])
+         my_data$expected_L_hat_next[i] <- calculate_next_period_with_average_diff(my_data$L_hat[(i-5):(i-1)])
      # Calculate running averages up to the current index
     if (i > 5) {  # Ensure there are enough data points to calculate a running average
         window_size <- i  # Define your window size for the running average
@@ -747,29 +745,28 @@ for (i in 6:104) {
     
 part1 <- (h / (1 + h)) * my_data$C_hat_lag1[i]
 part2 <- (1 / (1 + h)) * my_data$expected_C_hat_next[i]
-part3 <- ((sigma_c - 1) / (sigma_c * (1 + lambda_w) * (1 + h))) * ( my_data$expected_L_hat_next[i-1]- my_data$L_hat[i])
+part3 <- ((sigma_c - 1) / (sigma_c * (1 + lambda_w) * (1 + h))) * ( my_data$expected_L_hat_next[i]- my_data$L_hat[i])
 part4 <- -((1 - h) / ((1 + h)) * sigma_c) * (my_data$R_hat[i] - my_data$expected_Pi_hat_next[i])
 part5 <- ((1 - h) / ((1 + h) * sigma_c)) * my_data$epsilon_C[i]
 
 # Combine all parts to calculate C_hat for the current index
 my_data$C_hat[i] <- part1 + part2 + part3 + part4 + part5
 
-  
 
         
   # Output gap equation
-my_data$Q_hat[i] = -(my_data$R_hat[i] - my_data$expected_Pi_hat_next[i-1]) +
-       ((1-tao) / (1 - tao + r_k_star)) * my_data$expected_Q_hat_next[i-1] +
-        (r_k_star / (1 - tao + r_k_star)) * my_data$expected_R_hat_next[i-1] + my_data$epsilon_Q[i]
+my_data$Q_hat[i] = -(my_data$R_hat[i] - my_data$expected_Pi_hat_next[i]) +
+       ((1-tao) / (1 - tao + r_k_star)) * my_data$expected_Q_hat_next[i] +
+        (r_k_star / (1 - tao + r_k_star)) * my_data$expected_R_hat_next[i] + my_data$epsilon_Q[i]
 
 my_data$I_hat[i] = (1 / (1 + Beta)) * my_data$I_hat_lag1[i] +   
-   (Beta / (1 + Beta)) * my_data$expected_I_hat_next[i-1] +
+   (Beta / (1 + Beta)) * my_data$expected_I_hat_next[i] +
          ((1/phi_uppercase)/(1+Beta))*my_data$Q_hat[i]+my_data$epsilon_I[i]
  
  my_data$K_hat[i]=(1-tao)*my_data$K_hat_lag1[i]+tao*my_data$I_hat_lag1[i]
    tao*my_data$epsilon_I[i]
     
-   my_data$L_hat[i] = -my_data$W_hat[i] + (1 + psi) *my_data$R_hat[i]+ my_data$K_hat_lag1[i]
+   my_data$L_hat[i] = -my_data$W_hat[i] + my_data$R_hat[i]+ my_data$K_hat_lag1[i]
    
    my_data$Y_hat[i] = (1 - (tao*ky) - gy) * my_data$C_hat[i] + (tao*ky) * my_data$I_hat[i] + gy *my_data$epsilon_G[i]
   
@@ -796,40 +793,37 @@ parte <- my_data$epsilon_Pi[i]
 
    
     # Taylor rule equation
-  # my_data$R_hat[i] = my_data$pi_bar[i] + 
-   #         rho * (my_data$R_hat_lag1[i] - my_data$Pi_bar_lag1[i]) +
-  #         (1 - rho) * (r_pi * (my_data$Pi_hat_lag1[i] - my_data$Pi_bar_lag1[i])) + (r_pi * (my_data$Y_hat_lag1[i] - my_data$YP_hat_lag1[i]))+
-   #         ( r_pi * (my_data$Pi_hat[i] - my_data$pi_bar[i])-(my_data$Pi_hat_lag1[i]-my_data$Pi_bar_lag1[i])) +(r_y * (my_data$Y_hat[i] -my_data$YP_hat[i])-(my_data$Y_hat_lag1[i]-my_data$YP_hat_lag1[i]) ) + my_data$epsilon_R[i]
-
+ 
 
     # Break down the equation into parts as before
   # Break down the equation into parts as before
     part1w <- (Beta / (1 + Beta)) * my_data$expected_W_hat_next[i-1]
     part2w <- (1 / (1 + Beta)) * my_data$W_hat_lag1[i]
     part3w <- (Beta / (1 + Beta)) * (my_data$expected_Pi_hat_next[i-1] - my_data$pi_bar[i])
-    part4w <- - ((1 + (Beta * gamma_w)) / (1 + Beta)) * (my_data$Pi_hat_lag1[i] - my_data$pi_bar[i])
+    part4w <- ((1 + (Beta * gamma_w)) / (1 + Beta)) * (my_data$Pi_hat_lag1[i] - my_data$pi_bar[i])
     part5w <- (gamma_w / (1 + Beta)) * (my_data$expected_Pi_hat_next[i-1] - my_data$pi_bar[i])
 
     # Calculate the complex adjustment part
     adjustment_factor <- (1/(1+Beta))*((1 - (Beta * zeta_ws) * (1 - zeta_ws)) / (1 + ((1 - lambda_w) * sigma_L) / lambda_w) * zeta_ws)
-    complex_part <- adjustment_factor * (my_data$W_hat_lag1[i] - (sigma_L * my_data$L_hat[i]) - ((1 / (1 - h) * (my_data$C_hat[i] - (h*my_data$expected_C_hat_next[i-1]))) * my_data$epsilon_W[i])) + my_data$epsilon_L[i]
-
+    complex_part <- adjustment_factor *( (my_data$W_hat_lag1[i] - (sigma_L * my_data$L_hat_lag1[i]) - (1 / (1 - h) )* (my_data$C_hat[i] - my_data$C_hat_lag1[i])  ))+my_data$epsilon_L[i] 
     # Combine all parts for the final calculation of W_hat
-    my_data$W_hat[i] <- part1w + part2w + part3w + part4w + part5w - complex_part + my_data$epsilon_W[i]
+   my_data$W_hat[i] <- part1w + part2w + part3w - part4w + part5w - (complex_part/120) + my_data$epsilon_W[i]
       # Debugging code to print the value of each part after calculation
      # Debugging: print each part's value
-    print(paste("Iteration:", i))
-    print(paste("Part1:", part1))
-    print(paste("Part2:", part2))
-    print(paste("Part3:", part3))
-    print(paste("Part4:", part4))
-   print(paste("Part5:", part5))
-   print(paste("adjustment :", adjustment_factor))
-    print(paste("complex_part:", complex_part))
+    
+   
+   print(paste("Iteration:", i))
+    print(paste("Part1:", part1w))
+    print(paste("Part2:", part2w))
+    print(paste("Part3:", part3w))
+    print(paste("Part4:", part4w))
+   print(paste("Part5:", part5w))
+    print(paste("Part6:", adjustment_factor))
+   print(paste("complex:", complex_part))
+   
+   
    
     print(paste("W_hat[i]:", my_data$W_hat[i]))
-   
-   
  
 
     
