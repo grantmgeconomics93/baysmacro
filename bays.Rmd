@@ -996,7 +996,7 @@ model {
   phi ~ normal(4.00, 1.50);
   sigma_c ~ normal(1.50, 0.37);
   h ~ beta(2.47, 5.53);  // Beta parameters calculated from mean and standard deviation
-  zeta_w ~ beta(2.78, 2.78);  // Mean=0.5, SD=0.10 implies alpha=beta
+  zeta_ws ~ beta(2.78, 2.78);  // Mean=0.5, SD=0.10 implies alpha=beta
   sigma_L ~ normal(2.00, 0.75);
   zeta_p ~ beta(2.78, 2.78);  // Mean=0.5, SD=0.10 implies alpha=beta
   lambda_w ~ beta(3.13, 3.13);  // Mean=0.5, SD=0.15 implies alpha=beta
@@ -1009,7 +1009,7 @@ model {
   r_y ~ normal(0.12, 0.05);
   r_ay ~ normal(0.12, 0.05);
   pi ~ gamma(38.44, 62.10);  // Gamma parameters calculated from mean and standard deviation
-  `100(beta-1)` ~ gamma(0.16, 0.625);  // For beta parameterization, additional calculation needed
+  
   I ~ normal(0.00, 2.00);
   rbar ~ normal(0.40, 0.10);
   alpha ~ normal(0.30, 0.05);
