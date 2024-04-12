@@ -948,47 +948,87 @@ data {
   vector[T] ffr_vector;
   vector[T] kapital;
   vector[T] q;
+   real<lower=0, upper=1> mean_beta; // Known mean of the Beta distribution
+  real<lower=0> sd_beta;
+} 
+transformed data {
+  real<lower=0> alpha_beta; // Alpha parameter of the Beta distribution
+  real<lower=0> beta_beta;  // Beta parameter of the Beta distribution
+
+  // Convert mean and standard deviation to alpha and beta parameters
+  alpha_beta = ((1 - mean_beta) / (sd_beta^2) - 1 / mean_beta) * mean_beta^2;
+  beta_beta = alpha_beta * (1 / mean_beta - 1);
 }
+
 parameters {
-  real<lower=0.025, upper=0.525> Beta; 
-  real<lower=0.025, upper=0.525> tao;
-  real<lower=0.3, upper=0.8> alpha;
-  real<lower=1/.169, upper=1/.169 + 0.5> psi;
-  real<lower=.469, upper=.969> gamma_p;
-  real<lower=.763, upper=1.263> gamma_w; // Adjust if needed, assuming upper < 1 for probabilities
-  real<lower=.5, upper=1> lambda_w; // Given as .5, upper bound adjusted to 1 as a logical constraint for a probability
-  real<lower=.908, upper=1.408> zeta_ps; // Adjust if needed, assuming upper < 1 for probabilities
-  real<lower=0.737, upper=1.237> zeta_ws; // Adjust if needed, assuming upper < 1 for probabilities
-  real<lower=2.4, upper=2.9> sigma_L;
-  real<lower=1.353, upper=1.853> sigma_c;
-  real<lower=0.573, upper=1.073> h;
-  real<lower=1.408, upper=1.908> phi;
-  real<lower=1/6.771, upper=1/6.771 + 0.5> phi_uppercase;
-  real<lower=(1/Beta)-1+tao, upper=(1/Beta)-1+tao + 0.5> rbar_k; // Computed value, adjust the formula as per actual calculation
-  real<lower=8.8, upper=9.3> Ky;
-  real<lower=0.336, upper=0.836> sigma_eta_C;
-  real<lower=22, upper=22.5> Invy;
-  real<lower=0.6, upper=1.1> Cy; // Assuming Cy is a probability, adjust upper bound if needed
-  real<lower=Invy/tao, upper=(Invy/tao) + 0.5> ky; // Computed value, adjust the formula as per actual calculation
-  real<lower=1-Cy-Invy, upper=(1-Cy-Invy) + 0.5> gy; // Computed value, adjust the formula as per actual calculation
-  real<lower=0.14, upper=0.64> r_pi_g;
-  real<lower=0.099, upper=0.599> r_y;
-  real<lower=0.159, upper=0.659> Ry_delta;
-  real<lower=0.961, upper=1.461> rho;
-  real<lower=1.684, upper=2.184> r_pi;
-  real<lower=0.889, upper=1.389> rho_el;
-  real<lower=0.823, upper=1.323> rho_ea;
-  real<lower=0.855, upper=1.355> rho_eb;
-  real<lower=0.949, upper=1.449> rho_G;
-  real<lower=0.924, upper=1.424> rho_pi;
-  real<lower=0.927, upper=1.427> rh_i;
-  real<lower=0, upper=0.5> rho_er;
-  real<lower=(1 / Beta) - 1 + tao, upper=((1 / Beta) - 1 + tao) + 0.5> r_k_star; // Computed value, adjust the formula as per actual calculation
-  real<lower=0, upper=0.5> rho_lamdaw;
-  real<lower=0, upper=0.5> rho_q;
-  real<lower=0, upper=0.5> rho_lamda_p;
-  real<lower=0.9, upper=1.4> rho_L;
+ 
+    real<lower=0, upper=1> Beta; // Given mean is 0.025, the range would be truncated because Beta cannot be negative
+  real<lower=0, upper=1> tao;
+  real<lower=0, upper=0.8> alpha; // Mean=0.3, so range is 0.3±0.5, lower bound truncated at 0
+  real<lower=0, upper=1> psi; // Mean=1/.169, requires calculating the actual value and then ±0.5, truncating bounds as necessary
+  real<lower=0, upper=0.969> gamma_p; // Mean=0.469, so range is 0.469±0.5, upper bound truncated at 1
+  real<lower=0, upper=1> gamma_w; // Mean=0.763, so range is 0.763±0.5, upper bound truncated at 1
+    
+  real<lower=0, upper=1> lambda_w;
+  real<lower=0, upper=1> zeta_ps;
+  real<lower=0, upper=1> zeta_ws;
+  real<lower=1.9, upper=2.9> sigma_L;
+  real<lower=0.853, upper=1.853> sigma_c;
+  real<lower=0.073, upper=1.073> h;
+  real<lower=0.908, upper=1.908> phi;
+  real<lower=0, upper=1> phi_uppercase; // Mean=1/6.771, requires calculating the actual value and then ±0.5, truncating bounds as necessary
+  real<lower=0, upper=1> rbar_k; // Depends on Beta, the range might need to be dynamically calculated
+  real<lower=8.3, upper=9.3> Ky;
+  real<lower=0, upper=0.836> sigma_eta_C;
+  real<lower=21.5, upper=22.5> Invy;
+  real<lower=0.1, upper=1.1> Cy; // Mean=0.6, so range is 0.6±0.5, upper bound truncated at 1
+  real<lower=0, upper=1> ky; // Computed from Invy/tao, so range needs to be calculated based on those values
+  real<lower=0, upper=1> gy; // Computed from 1-Cy-Invy, so range needs to be calculated based on those values
+  real<lower=0, upper=0.64> r_pi_g;
+  real<lower=0, upper=0.599> r_y;
+  real<lower=0, upper=0.659> Ry_delta;
+  real<lower=0.461, upper=1.461> rho; // Mean=0.961, so range is 0.961±0.5, upper bound truncated at 1
+  real<lower=1.184, upper=2.184> r_pi;
+  real<lower=0.389, upper=1.389> rho_el; // Mean=0.889, so range is 0.889±0.5, upper bound truncated at 1
+  real<lower=0.323, upper=1.323> rho_ea; // Mean=0.823, so range is 0.823±0.5, upper bound truncated at 1
+  real<lower=0.355, upper=1.355> rho_eb; // Mean=0.855, so range is 0.855±0.5, upper bound truncated at 1
+  real<lower=0.449, upper=1.449> rho_G; // Mean=0.949, so range is 0.949±0.5, upper bound truncated at 1
+  real<lower=0.424, upper=1.424> rho_pi; // Mean=0.924, so range is 0.924±0.5, upper bound truncated at 1
+  real<lower=0.427, upper=1.427> rh_i; // Mean=0.927, so range is 0.927±0.5, upper bound truncated at 1
+ 
+  real<lower=0> rho_er; // Since rho_er=0, it is set as the lower bound
+  real<lower=0, upper=1> rho_lamdaw; // Since rho_lamdaw=0, it is set as the lower bound
+  real<lower=0, upper=1> rho_q; // Since rho_q=0, it is set as the lower bound
+  real<lower=0, upper=1> rho_lamda_p; // Since rho_lamda_p=0, it is set as the lower bound
+  
+  // r_k_star is computed from Beta and tao, and will need to have a dynamic range based on those values.
+ 
+  // rho_L has a given value of 0.9, the range would be 0.4 to 1 since it can't exceed 1
+  real<lower=0.4, upper=1> rho_L;
+   real<lower=0> sigma_e_L; // Only lower bound specified, no upper bound
+  real<lower=0> sigma_e_a; // Only lower bound specified, no upper bound
+  real<lower=0> sigma_e_b; // Only lower bound specified, no upper bound
+  real<lower=0> sigma_G; // Only lower bound specified, no upper bound
+  real<lower=0> sigma_pi_bar; // Only lower bound specified, no upper bound
+  real<lower=0> sigma_er; // Only lower bound specified, no upper bound
+  real<lower=0> sigma_ei; // Only lower bound specified, no upper bound
+  real<lower=0> sigma_lamada_p; // Only lower bound specified, no upper bound
+  real<lower=0> sigma_lamda_w; // Only lower bound specified, no upper bound
+  real<lower=0> sigma_e_q; // Only lower bound specified, no upper bound
+  real<lower=0> sigma_e_i; // Only lower bound specified, no upper bound
+  real<lower=0> sigma_e_c; // Only lower bound specified, no upper bound
+  real<lower=0> alpha_inv_gamma;
+  real<lower=0> alpha_k; // Only lower bound specified, no upper bound
+
+  real<lower=0> sigma_e_p; // Only lower bound specified, no upper bound
+  real<lower=0> sigma_e_w; // Only lower bound specified, no upper bound
+
+  
   // Continue with other parameters following the same pattern
+}
+transformed parameters  {
+ 
+  real<lower=(1/Beta)-1+tao-0.5, upper=(1/Beta)-1+tao+0.5> r_k_star;
 }
 model {
   
@@ -997,47 +1037,46 @@ model {
   sigma_c ~ normal(1.50, 0.37);
   h ~ beta(2.47, 5.53);  // Beta parameters calculated from mean and standard deviation
   zeta_ws ~ beta(2.78, 2.78);  // Mean=0.5, SD=0.10 implies alpha=beta
-  sigma_L ~ normal(2.00, 0.75);
-  zeta_p ~ beta(2.78, 2.78);  // Mean=0.5, SD=0.10 implies alpha=beta
+  sigma_e_L ~ normal(2.00, 0.75);
+  zeta_ps ~ beta(2.78, 2.78);  // Mean=0.5, SD=0.10 implies alpha=beta
   lambda_w ~ beta(3.13, 3.13);  // Mean=0.5, SD=0.15 implies alpha=beta
-  lambda_p ~ beta(3.13, 3.13);  // Mean=0.5, SD=0.15 implies alpha=beta
   psi ~ beta(3.13, 3.13);  // Mean=0.5, SD=0.15 implies alpha=beta
-  Phi ~ normal(1.25, 0.12);
+  phi_uppercase ~ normal(1.25, 0.12);
   r_pi ~ normal(1.50, 0.25);
   rho ~ beta(5.25, 1.75);  // Beta parameters calculated from mean and standard deviation
-  r ~ normal(0.12, 0.05);
+  r_k_star ~ normal(1.50, 0.25); // Likelihood of the observed data
   r_y ~ normal(0.12, 0.05);
-  r_ay ~ normal(0.12, 0.05);
-  pi ~ gamma(38.44, 62.10);  // Gamma parameters calculated from mean and standard deviation
+  Ry_delta ~ normal(0.12, 0.05);
   
-  I ~ normal(0.00, 2.00);
-  rbar ~ normal(0.40, 0.10);
+  rbar_k ~ normal(0.40, 0.10);
   alpha ~ normal(0.30, 0.05);
    // Inverse gamma priors for standard deviation parameters
-  sigma_a ~ inv_gamma(0.10, 2.00);
-  sigma_b ~ inv_gamma(0.10, 2.00);
-  sigma_g ~ inv_gamma(0.10, 2.00);
-  sigma_l ~ inv_gamma(0.10, 2.00);
-  sigma_r ~ inv_gamma(0.10, 2.00);
-  sigma_pi ~ inv_gamma(0.10, 2.00);
-  sigma_w ~ inv_gamma(0.10, 2.00);
-
+ 
+  sigma_e_L ~ inv_gamma(alpha_inv_gamma, 3.52);
+  sigma_e_a ~ inv_gamma(alpha_inv_gamma, 0.598);
+  sigma_e_b ~ inv_gamma(alpha_inv_gamma, 0.336);
+  sigma_G ~ inv_gamma(alpha_inv_gamma, 0.325);
+  sigma_pi_bar ~ inv_gamma(alpha_inv_gamma, 0.017);
+  sigma_er ~ inv_gamma(alpha_inv_gamma, 0.081);
+  sigma_ei ~ inv_gamma(alpha_inv_gamma, 0.085);
+  sigma_lamada_p ~ inv_gamma(alpha_inv_gamma, 0.16);
+  sigma_lamda_w ~ inv_gamma(alpha_inv_gamma, 0.289);
+  sigma_e_q ~ inv_gamma(alpha_inv_gamma, 0.604);
+  sigma_e_i ~ inv_gamma(alpha_inv_gamma, 3.52);
+  sigma_e_c ~ inv_gamma(alpha_inv_gamma, 0.336);
   // Beta priors for probability parameters
-  rho_a ~ beta(2.5, 2.5); // Derived from mean=0.50 and st.dev.=0.20
-  rho_b ~ beta(2.5, 2.5);
-  rho_g ~ beta(2.5, 2.5);
-  rho_l ~ beta(2.5, 2.5);
-  rho_r ~ beta(2.5, 2.5);
+  rho ~ beta(2.5, 2.5); // Derived from mean=0.50 and st.dev.=0.20
+  rho_el ~ beta(2.5, 2.5);
+  rho_ea ~ beta(2.5, 2.5);
+  rho_eb ~ beta(2.5, 2.5);
+  rho_G ~ beta(2.5, 2.5);
   rho_pi ~ beta(2.5, 2.5);
-  rho_w ~ beta(2.5, 2.5);
-  mu_pi ~ beta(2.5, 2.5);
-  mu_w ~ beta(2.5, 2.5);
-  rho_gw ~ beta(2.5, 2.5);
-  
+  rh_i ~ beta(2.5, 2.5);
+  rho_L ~ beta(2.5, 2.5); // Assuming rho_L is intended to be a probability
   // Likelihood
   for (t in 2:T) {
     real rho_c = beta_rng(alpha_beta, beta_beta);
-      real eta_c = normal_rng(0, sigma_eta_C);
+      real eta_c = normal_rng(0, sigma_e_c);
        epsilon_C[i] = rho_c * epsilon_C[i-1] + eta_c;
    
      real part1 = (h / (1 + h)) * C_hat[i-1]; // Assuming C_hat_lag1 maps to consumption_growth_vector from previous period
