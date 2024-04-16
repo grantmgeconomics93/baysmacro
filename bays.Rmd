@@ -847,8 +847,46 @@ final <- final[2:121, ]
 library(rstan)
 ```
 ```{r}
+# Assuming 'my_data' and 'final' are already defined data frames in your R environment
+
+# Combine vectors into a new dataframe
+data_df <- data.frame(
+  epsilon_C = my_data$epsilon_C,
+  epsilon_Q = my_data$epsilon_Q,
+  epsilon_I = my_data$epsilon_I,
+  epsilon_PI = my_data$epsilon_Pi,
+  epsilon_G = my_data$epsilon_G,
+  epsilon_R = my_data$epsilon_R,
+  epsilon_W = my_data$W_hat,
+  output_growth_vector = final$Output_growth,
+  consumption_growth_vector = final$Consumption_growth,
+  investment_growth_vector = final$Investment_growth,
+  wage_growth_vector = final$Wage_growth,
+  hours_vector = final$Hours,
+  inflation_vector = final$Inflation,
+  ffr_vector = final$Ffr,
+  kapital = my_data$K_hat,
+  q = my_data$Q_hat
+)
+
+# Print the dataframe to view it
+print(data_df)
+
+# 'T' will be the number of rows in 'final' if 'Investment_growth' is a column in 'final'
+T <- nrow(final)
+
+```
+
+```{r}
 
 # Now, to convert these columns to vectors (arrays in R terminology are multi-dimensional structures)
+epsilon_C = my_data$epsilon_C
+epsilon_Q=my_data$epsilon_Q
+epsilon_I=my_data$epsilon_I
+epsilon_PI=my_data$epsilon_Pi
+epsilon_G=my_data$epsilon_G
+epsilon_R=my_data$epsilon_R
+epsilon_W=my_data$W_hat
 output_growth_vector <- final$Output_growth
 consumption_growth_vector <- final$Consumption_growth
 investment_growth_vector <- final$Investment_growth
@@ -929,6 +967,10 @@ parte <- my_data$epsilon_Pi[i]
  
 ```
 
+```{r}
+library(V8)
+```
+
 ```{stan output.var="model"}
 data {
   int<lower=1> T; // Number of time points
@@ -948,17 +990,8 @@ data {
   vector[T] ffr_vector;
   vector[T] kapital;
   vector[T] q;
-   real<lower=0, upper=1> mean_beta; // Known mean of the Beta distribution
-  real<lower=0> sd_beta;
+    // Standard deviation for eta_c
 } 
-transformed data {
-  real<lower=0> alpha_beta; // Alpha parameter of the Beta distribution
-  real<lower=0> beta_beta;  // Beta parameter of the Beta distribution
-
-  // Convert mean and standard deviation to alpha and beta parameters
-  alpha_beta = ((1 - mean_beta) / (sd_beta^2) - 1 / mean_beta) * mean_beta^2;
-  beta_beta = alpha_beta * (1 / mean_beta - 1);
-}
 
 parameters {
  
@@ -1074,26 +1107,36 @@ model {
   rh_i ~ beta(2.5, 2.5);
   rho_L ~ beta(2.5, 2.5); // Assuming rho_L is intended to be a probability
   // Likelihood
-  for (t in 2:T) {
-    real rho_c = beta_rng(alpha_beta, beta_beta);
-      real eta_c = normal_rng(0, sigma_e_c);
-       epsilon_C[i] = rho_c * epsilon_C[i-1] + eta_c;
-   
-     real part1 = (h / (1 + h)) * C_hat[i-1]; // Assuming C_hat_lag1 maps to consumption_growth_vector from previous period
-    real part2 = (1 / (1 + h)) * C_hat[i-1]; // Assuming expected_C_hat_next maps to consumption_growth_vector from previous period, same as part1 due to naming
-    real part3 = ((sigma_c - 1) / (sigma_c * (1 + lambda_w) * (1 + h))) * (hours_vector[i-1] - hours_vector[i]); // L_hat is mapped to hours_vector
-    real part4 = -((1 - h) / ((1 + h)) * sigma_c) * (ffr_vector[i] - inflation_vector[i-1]); // R_hat is mapped to ffr_vector and expected_Pi_hat_next to inflation_vector from previous period
-    real part5 = ((1 - h) / ((1 + h) * sigma_c)) * epsilon_C[i]; // epsilon_C is a stochastic shock term which should be defined elsewhere in your model
+  
 
-    // Combine all parts to calculate C_hat for the current index
-    C_hat[i] = part1 + part2 + part3 + part4 + part5;
-  }
+  for (t in 2:T)  {
+    real part1 = (h / (1 + h)) * consumption_growth_vector[t-1]; 
+    real part2 = (1 / (1 + h)) * consumption_growth_vector[t-1]; 
+    real part3 = ((sigma_c - 1) / (sigma_c * (1 + lambda_w) * (1 + h))) * (hours_vector[t-1] - hours_vector[t]);
+    real part4 = -((1 - h) / ((1 + h)) * sigma_c) * (ffr_vector[t] - inflation_vector[t-1]);
+    real part5 = ((1 - h) / ((1 + h) * sigma_c)) * epsilon_C[t] ; // Assuming rho_c and eta_c are arrays generated in 'generated quantities'
+
+    consumption_growth_vector[t] ~ inv_gamma(part1 + part2 + part3 + part4 + part5,sigma_e_c );
+     //Output gap equation
+//my_data$Q_hat[i] = -(my_data$R_hat[i] - my_data$expected_Pi_hat_next[i]) +
+ //      ((1-tao) / (1 - tao + r_k_star)) * my_data$expected_Q_hat_next[i] +
+//      (r_k_star / (1 - tao + r_k_star)) * my_data$expected_R_hat_next[i] + my_data$epsilon_Q[i]
+  } 
 }
 
 
 
 ```
+```{r}
+fit <- sampling(model, data = , chains = 4, iter = 2000, warmup = 1000)
 
+```
+
+```{r}
+rm(list = ls())  # Remove all objects from the current R environment
+gc()             # Force garbage collection to free up memory
+
+```
 
 
 
