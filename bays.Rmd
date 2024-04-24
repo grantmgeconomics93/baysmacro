@@ -241,7 +241,7 @@ my_data <- data.frame(
    
     
     K_hat=rep(350,120),
-   
+    r_k_star=rep(-500,120),
     
    
     Q_hat = rep(14,120),
@@ -342,12 +342,13 @@ for (i in 2:120) {
         
   # Output gap equation
 my_data$Q_hat[i] = (my_data$R_hat[i] - my_data$expected_Pi_hat_next[i]) +
-       ((1-tao) / (1 - tao + r_k_star)) * my_data$expected_Q_hat_next[i] +
-        (r_k_star / (1 - tao + r_k_star)) * my_data$expected_R_hat_next[i] + my_data$epsilon_Q[i]
+       ((1-tao) / (1 - tao + my_data$r_k_star[i])) * my_data$expected_Q_hat_next[i] +
+        (my_data$r_k_star[i] / (1 - tao + my_data$r_k_star[i])) * my_data$expected_R_hat_next[i] + my_data$epsilon_Q[i]
 
  
  my_data$K_hat[i]=(1-tao)*my_data$K_hat_lag1[i]+tao*my_data$I_hat_lag1[i]
    tao*my_data$epsilon_I[i]
+  my_data$r_k_star[i]=-(my_data$K_hat[i]- my_data$L_hat[i])+my_data$W_hat[i]
     
     }
 
@@ -374,6 +375,7 @@ data_list <- list(
   epsilon_PI = my_data$epsilon_Pi,
   epsilon_G = my_data$epsilon_G,
   epsilon_R = my_data$epsilon_R,
+  r_k_star=my_data$r_k_star,
   epsilon_W = my_data$W_hat,
   output_growth_vector = final$Output_growth,
   consumption_growth_vector = final$Consumption_growth,
@@ -418,6 +420,7 @@ data {
   vector[T] ffr_vector;
   vector[T] kapital;
   vector[T] q;
+  vector[T]  r_k_star;
     // Standard deviation for eta_c
 } 
 
@@ -427,7 +430,7 @@ parameters {
   real<lower=0.19, upper=0.75> tao;
   real<lower=0, upper=0.8> alpha; // Mean=0.3, so range is 0.3±0.5, lower bound truncated at 0
   real<lower=0, upper=1> psi; // Mean=1/.169, requires calculating the actual value and then ±0.5, truncating bounds as necessary
-  real<lower=0, upper=0.969> gamma_p; // Mean=0.469, so range is 0.469±0.5, upper bound truncated at 1
+  real<lower=0, upper=0.969> gamma_pi; // Mean=0.469, so range is 0.469±0.5, upper bound truncated at 1
   real<lower=0, upper=1> gamma_w; // Mean=0.763, so range is 0.763±0.5, upper bound truncated at 1
     
   real<lower=0, upper=1> lambda_w;
@@ -445,7 +448,7 @@ parameters {
   real<lower=0.1, upper=1.1> Cy; // Mean=0.6, so range is 0.6±0.5, upper bound truncated at 1
   real<lower=0, upper=1> ky; // Computed from Invy/tao, so range needs to be calculated based on those values
   real<lower=0, upper=1> gy; // Computed from 1-Cy-Invy, so range needs to be calculated based on those values
-  real<lower=0, upper=0.64> r_pi_g;
+  real<lower=0, upper=0.64> r_pi;
   real<lower=0, upper=0.599> r_y;
   real<lower=0, upper=0.659> Ry_delta;
    real<lower=0, upper=1> rho;
@@ -455,9 +458,8 @@ parameters {
   real<lower=0, upper=1> rho_G;
   real<lower=0, upper=1> rho_pi;
   real<lower=0, upper=1> rh_i;
-  real<lower=0, upper=1> rho_L; 
-  real<lower=0.427, upper=1.427> rh_i; // Mean=0.927, so range is 0.927±0.5, upper bound truncated at 1
- 
+  
+  
   real<lower=0> rho_er; // Since rho_er=0, it is set as the lower bound
   real<lower=0, upper=1> rho_lamdaw; // Since rho_lamdaw=0, it is set as the lower bound
   real<lower=0, upper=1> rho_q; // Since rho_q=0, it is set as the lower bound
@@ -467,42 +469,42 @@ parameters {
  
   // rho_L has a given value of 0.9, the range would be 0.4 to 1 since it can't exceed 1
   real<lower=0.4, upper=1> rho_L;
-   real<lower=0> sigma_e_L; // Only lower bound specified, no upper bound
-  real<lower=0> sigma_e_a; // Only lower bound specified, no upper bound
-  real<lower=0> sigma_e_b; // Only lower bound specified, no upper bound
-  real<lower=0> sigma_G; // Only lower bound specified, no upper bound
-  real<lower=0> sigma_pi_bar; // Only lower bound specified, no upper bound
-  real<lower=0> sigma_er; // Only lower bound specified, no upper bound
-  real<lower=0> sigma_ei; // Only lower bound specified, no upper bound
-  real<lower=0> sigma_lamada_p; // Only lower bound specified, no upper bound
-  real<lower=0> sigma_lamda_w; // Only lower bound specified, no upper bound
-  real<lower=0> sigma_e_q; // Only lower bound specified, no upper bound
-  real<lower=0> sigma_e_i; // Only lower bound specified, no upper bound
-  real<lower=0> sigma_e_c; // Only lower bound specified, no upper bound
-  real<lower=0> alpha_inv_gamma;
-  real<lower=0> alpha_k; // Only lower bound specified, no upper bound
+  // real<lower=0> sigma_e_L; // Only lower bound specified, no upper bound
+  //real<lower=0> sigma_e_a; // Only lower bound specified, no upper bound
+  //real<lower=0> sigma_e_b; // Only lower bound specified, no upper bound
+  //real<lower=0> sigma_G; // Only lower bound specified, no upper bound
+  //real<lower=0> sigma_pi_bar; // Only lower bound specified, no upper bound
+  //real<lower=0> sigma_er; // Only lower bound specified, no upper bound
+  //real<lower=0> sigma_ei; // Only lower bound specified, no upper bound
+  //real<lower=0> sigma_lamada_p; // Only lower bound specified, no upper bound
+  //real<lower=0> sigma_lamda_w; // Only lower bound specified, no upper bound
+  //real<lower=0> sigma_e_q; // Only lower bound specified, no upper bound
+  //real<lower=0> sigma_e_i; // Only lower bound specified, no upper bound
+  //real<lower=0> sigma_e_c; // Only lower bound specified, no upper bound
+  //real<lower=0> alpha_inv_gamma;
+  //real<lower=0> alpha_k; // Only lower bound specified, no upper bound
 
-  real<lower=0> sigma_e_p; // Only lower bound specified, no upper bound
-  real<lower=0> sigma_e_w; // Only lower bound specified, no upper bound
+  //real<lower=0> sigma_e_p; // Only lower bound specified, no upper bound
+  //real<lower=0> sigma_e_w; // Only lower bound specified, no upper bound
 
   
   // Continue with other parameters following the same pattern
 }
 transformed parameters  {
  
-  //real<lower=(1/Beta)-1+tao-0.5, upper=(1/Beta)-1+tao+0.5> r_k_star;
+ // real<lower=(1/Beta)-1+tao-0.5, upper=(1/Beta)-1+tao+0.5> r_k_star;
 }
 model {
   
   // Priors for parameters based on the provided table
   phi ~ normal(4.00, 1.50);
-  sigma_c ~ normal(1.50, 0.37);
-  h ~ beta(.3, 14);  // Beta parameters calculated from mean and standard deviation
-  zeta_ws ~ beta(.3, 12);  // Mean=0.5, SD=0.10 implies alpha=beta
-  sigma_e_L ~ normal(2.00, 0.75);
-  zeta_ps ~ beta(2.78, 2.78);  // Mean=0.5, SD=0.10 implies alpha=beta
-  lambda_w ~ beta(3.13, 3.13);  // Mean=0.5, SD=0.15 implies alpha=beta
-  psi ~ beta(3.13, 3.13);  // Mean=0.5, SD=0.15 implies alpha=beta
+  //sigma_c ~ normal(1.50, 0.37);
+  h ~ beta(0.3, 14);  // Beta parameters calculated from mean and standard deviation
+  zeta_ws ~ beta(0.3, 12);  // Mean=0.5, SD=0.10 implies alpha=beta
+  //sigma_e_L ~ normal(2.00, 0.75);
+  zeta_ps ~ beta(0.3, 12);  // Mean=0.5, SD=0.10 implies alpha=beta
+  lambda_w ~ beta(0.3, 5.055);  // Mean=0.5, SD=0.15 implies alpha=beta
+  psi ~ beta(0.3, 5.05);  // Mean=0.5, SD=0.15 implies alpha=beta
   phi_uppercase ~ normal(1.25, 0.12);
   r_pi ~ normal(1.50, 0.25);
   
@@ -513,18 +515,18 @@ model {
   alpha ~ normal(0.30, 0.05);
    // Inverse gamma priors for standard deviation parameters
  
-  sigma_e_L ~ inv_gamma(alpha_inv_gamma, 3.52);
-  sigma_e_a ~ inv_gamma(alpha_inv_gamma, 0.598);
-  sigma_e_b ~ inv_gamma(alpha_inv_gamma, 0.336);
-  sigma_G ~ inv_gamma(alpha_inv_gamma, 0.325);
-  sigma_pi_bar ~ inv_gamma(alpha_inv_gamma, 0.017);
-  sigma_er ~ inv_gamma(alpha_inv_gamma, 0.081);
-  sigma_ei ~ inv_gamma(alpha_inv_gamma, 0.085);
-  sigma_lamada_p ~ inv_gamma(alpha_inv_gamma, 0.16);
-  sigma_lamda_w ~ inv_gamma(alpha_inv_gamma, 0.289);
-  sigma_e_q ~ inv_gamma(alpha_inv_gamma, 0.604);
-  sigma_e_i ~ inv_gamma(alpha_inv_gamma, 3.52);
-  sigma_e_c ~ inv_gamma(alpha_inv_gamma, 0.336);
+  //sigma_e_L ~ inv_gamma(alpha_inv_gamma, 3.52);
+  //sigma_e_a ~ inv_gamma(alpha_inv_gamma, 0.598);
+  //sigma_e_b ~ inv_gamma(alpha_inv_gamma, 0.336);
+  //sigma_G ~ inv_gamma(alpha_inv_gamma, 0.325);
+  //sigma_pi_bar ~ inv_gamma(alpha_inv_gamma, 0.017);
+  //sigma_er ~ inv_gamma(alpha_inv_gamma, 0.081);
+  //sigma_ei ~ inv_gamma(alpha_inv_gamma, 0.085);
+  //sigma_lamada_p ~ inv_gamma(alpha_inv_gamma, 0.16);
+  //sigma_lamda_w ~ inv_gamma(alpha_inv_gamma, 0.289);
+  //sigma_e_q ~ inv_gamma(alpha_inv_gamma, 0.604);
+  //sigma_e_i ~ inv_gamma(alpha_inv_gamma, 3.52);
+  //sigma_e_c ~ inv_gamma(alpha_inv_gamma, 0.336);
   // Beta priors for probability parameters
    rho ~ beta(0.3, 2.625);
   rho_el ~ beta(0.3, 2.625);
@@ -544,11 +546,32 @@ model {
     real part4 = -((1 - h) / ((1 + h)) * sigma_c) * (ffr_vector[t] - inflation_vector[t-1]);
     real part5 = ((1 - h) / ((1 + h) * sigma_c)) * epsilon_C[t] ; // Assuming rho_c and eta_c are arrays generated in 'generated quantities'
 
-    consumption_growth_vector[t] ~ inv_gamma(part1 + part2 + part3 + part4 + part5,sigma_e_c );
+    consumption_growth_vector[t] ~ normal(part1 + part2 + part3 + part4 + part5,18.22393);
+     
+     //r_k_star~ (-(kapital[t]-hours_vector[t])-wage_growth_vector[t],)
      //Output gap equation
-//my_data$Q_hat[i] = -(my_data$R_hat[i] - my_data$expected_Pi_hat_next[i]) +
- //      ((1-tao) / (1 - tao + r_k_star)) * my_data$expected_Q_hat_next[i] +
-//      (r_k_star / (1 - tao + r_k_star)) * my_data$expected_R_hat_next[i] + my_data$epsilon_Q[i]
+ q[t] ~ normal(-(ffr_vector[t] - inflation_vector[t-1]) +
+      ((1-tao) / (1 - tao + r_k_star[t])) * q[t-1] +
+    (r_k_star[t] / (1 - tao + r_k_star[t])) * ffr_vector[t-1]+epsilon_Q[t],5.701086);
+    investment_growth_vector[t] ~ normal((1 / (1 + Beta)) * investment_growth_vector[t-1]     +(Beta / (1 + Beta)) * investment_growth_vector[t-1] +
+         ((1/phi_uppercase)/(1+Beta))*q[t]+epsilon_I[t],17.244);
+         
+   kapital[t] ~normal((1-tao)*kapital[t-1]+tao*investment_growth_vector[i]
+   tao*epsilon_I[t],)
+    
+   hours_vector[t]~ normal(-wage_growth_vector[t] + (1+psi)*ffr_vector[t]+ kapital[t-1],)
+   
+   output_growth_vector[t] ~ normal((1 - (tao*ky) - gy) * consumption_growth_vector[t] + (tao*ky) * investment_growth_vector[t] + gy *epsilon_G[t],)
+      
+// Breaking down the calculation into parts
+parta = (Beta / (1 + Beta * gamma_pi)) * (my_data$expected_Pi_hat_next[t-1]-my_data$pi_bar[t])
+partb = (gamma_p / (1 + Beta * gamma_pi)) * (my_data$Pi_hat_lag1[i] -my_data$pi_bar[t]) 
+partc =  (1/(1 - Beta * gamma_pi))* (((1-Beta*zeta_ps)*(1-zeta_ps))/zeta_ps)*(alpha*my_data$R_hat[t]+((1-alpha)*my_data$W_hat[t])-my_data$epsilon_pitwo[t]-(1-alpha)*gamma_w) 
+parte =my_data$epsilon_Pi[t]
+// Combine parts
+ my_data$Pi_hat[i]~  normal(parta + partb + partc + parte + my_data$pi_bar[t])
+    
+    
   } 
 }
 
@@ -556,15 +579,113 @@ model {
 
 ```
 ```{r}
-fit <- sampling(model, data =data_list , chains = 4, iter = 2000, warmup = 1000)
+fit <- sampling(model, data =data_list , chains = 4, iter = 6000, warmup = 1000)
 
 ```
 
 ```{r}
-rm(list = ls())  # Remove all objects from the current R environment
-gc()             # Force garbage collection to free up memory
+my_data$I_hat[i] = (1 / (1 + Beta)) * my_data$I_hat_lag1[i] +   
+   (Beta / (1 + Beta)) * my_data$expected_I_hat_next[i] +
+         ((1/phi_uppercase)/(1+Beta))*my_data$Q_hat[i]+my_data$epsilon_I[i]
+ 
+ my_data$K_hat[i]=(1-tao)*my_data$K_hat_lag1[i]+tao*my_data$I_hat_lag1[i]
+   tao*my_data$epsilon_I[i]
+    
+   my_data$L_hat[i] = -my_data$W_hat[i] + (1+psi)*my_data$R_hat[i]+ my_data$K_hat_lag1[i]
+   
+   my_data$Y_hat[i] = (1 - (tao*ky) - gy) * my_data$C_hat[i] + (tao*ky) * my_data$I_hat[i] + gy *my_data$epsilon_G[i]
+  
+   
+# Breaking down the calculation into parts
+parta <- (Beta / (1 + Beta * gamma_pi)) * (my_data$expected_Pi_hat_next[i-1]-my_data$pi_bar[i])
+partb<- (gamma_p / (1 + Beta * gamma_pi)) * (my_data$Pi_hat_lag1[i] -my_data$pi_bar[i]) # Check if this should be [i] or [i-1]
+partc <-  (1/(1 - Beta * gamma_pi))* (((1-Beta*zeta_ps)*(1-zeta_ps))/zeta_ps)*(alpha*my_data$R_hat[i]+((1-alpha)*my_data$W_hat[i])-my_data$epsilon_pitwo[i]-(1-alpha)*gamma_w) 
+parte <- my_data$epsilon_Pi[i]
+# Combine parts
+ my_data$Pi_hat[i]<- parta + partb + partc + parte + my_data$pi_bar[i] 
+ # Calculating individual parts of the equation
+    part1r <- my_data$pi_bar[i]
+    part2r <- rho * (my_data$R_hat_lag1[i] - my_data$Pi_bar_lag1[i])
+   # part3r <- (1 - rho) * ((r_pi * (my_data$Pi_hat_lag1[i] - my_data$Pi_bar_lag1[i]))+(r_y*(my_data$Y_hat_lag1[i]-my_data$YP_hat_lag1[i])))
+   part4r=r_pi_g*((my_data$Pi_hat[i]- my_data$pi_bar[i])-(my_data$Pi_hat_lag1[i] -my_data$Pi_bar_lag1[i]))
+   #part5r=Ry_delta*((my_data$Y_hat[i]- my_data$YP_hat[i])-(my_data$Y_hat_lag1[i]- my_data$YP_hat_lag1[i]))
+   part6r=my_data$epsilon_R[i]
+    
+    # Combining all parts to calculate R_hat for the current index
+    my_data$R_hat[i] <- part1r + part2r + part4r  + part6r 
+     # Taylor rule equation
+ 
+    # Break down the equation into parts as before
+  # Break down the equation into parts as before
+    part1w <- (Beta / (1 + Beta)) * my_data$expected_W_hat_next[i]
+    part2w <- (1 / (1 + Beta)) * my_data$W_hat_lag1[i]
+    part3w <- (Beta / (1 + Beta)) * (my_data$expected_Pi_hat_next[i-1] - my_data$pi_bar[i])
+    part4w <- ((1 + (Beta * gamma_w)) / (1 + Beta)) * (my_data$Pi_hat_lag1[i] - my_data$pi_bar[i])
+    part5w <- (gamma_w / (1 + Beta)) * (my_data$expected_Pi_hat_next[i-1] - my_data$pi_bar[i])
+    # Calculate the complex adjustment part
+    adjustment_factor <- (1/(1+Beta))*((1 - (Beta * zeta_ws) * (1 - zeta_ws)) / (1 + ((1 - lambda_w) * sigma_L) / lambda_w) * zeta_ws)
+    complex_part <- adjustment_factor *( (my_data$W_hat_lag1[i] - (sigma_L * my_data$L_hat_lag1[i]) - (1 / (1 - h) )* (my_data$C_hat[i] -(h* my_data$C_hat_lag1[i]))  ))+my_data$epsilon_L[i] 
+    # Combine all parts for the final calculation of W_hat
+   my_data$W_hat[i] <- part1w + part2w + part3w - part4w + part5w - complex_part + my_data$epsilon_W[i]
+      # Debugging code to print the value of each part after calculation
+   
+```
+```{r}
+
+library(actuar)
+library(MASS)
 
 ```
+```{r}
+data_list <- list(
+  output_growth_vector = final$Output_growth,
+  consumption_growth_vector = final$Consumption_growth,
+  investment_growth_vector = final$Investment_growth,
+  wage_growth_vector = final$Wage_growth,
+  hours_vector = final$Hours,
+  inflation_vector = final$Inflation,
+  ffr_vector = final$Ffr,
+  kapital = my_data$K_hat,
+  q = my_data$Q_hat
+)
+
+```
+
+
+```{r}
+library(MASS)  # Ensure MASS is loaded for fitdistr
+```
+
+
+```{r}
+results <- list()  # Initialize results storage
+
+# Loop through each data vector in the list
+for (data_name in names(data_list)) {
+    cat("Optimizing for", data_name, "\n")
+    
+    # Extract the current data vector
+    current_data <- data_list[[data_name]]
+    
+    # Check if the current data vector is non-empty and numeric
+    if (length(current_data) > 0 && is.numeric(current_data)) {
+        # Fit the normal distribution to the current data vector
+        fit_normal <- fitdistr(current_data, densfun = "normal")
+
+        # Store the results
+        results[[data_name]] <- fit_normal
+        
+        # Print the estimated parameters
+        cat(data_name, "Estimated mean:", fit_normal$estimate["mean"], 
+            "Estimated sd:", fit_normal$estimate["sd"], "\n")
+    } else {
+        cat(data_name, "data is not a non-empty numeric vector.\n")
+    }
+}
+
+```
+
+
 
 
 
