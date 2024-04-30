@@ -615,6 +615,36 @@ fit <- sampling(model, data =data_list , chains = 4, iter = 6000, warmup = 1000)
 
 ```
 ```{r}
+library(bayesplot)
+```
+```{r}
+# Extract parameter names again to confirm
+param_names <- dimnames(params)[[3]]
+print(param_names)
+# Using ggplot2 for a custom trace plot if 'bayesplot' fails
+if (exists("beta_data")) {
+    library(ggplot2)
+    beta_df <- data.frame(Iteration = rep(1:nrow(beta_data), ncol(beta_data)),
+                          Beta = as.vector(t(beta_data)),
+                          Chain = rep(1:ncol(beta_data), each = nrow(beta_data)))
+    ggplot(beta_df, aes(x = Iteration, y = Beta, color = as.factor(Chain))) +
+        geom_line() +
+        labs(title = "Trace Plot for Beta", x = "Iteration", y = "phi") +
+        theme_minimal()
+}
+
+```
+```{r}
+# Access data directly from the environment
+beta_data <- get("Beta", envir = .GlobalEnv)
+
+# Access data from the list
+beta_data_from_list <- param_data_list[["Beta"]]
+
+```
+
+
+```{r}
 Warning messages:
 1: There were 18220 divergent transitions after warmup. See
 https://mc-stan.org/misc/warnings.html#divergent-transitions-after-warmup
