@@ -446,12 +446,12 @@ data {
 
 parameters {
  
-    real<lower=0.19, upper=0.75> Beta; // Given mean is 0.025, the range would be truncated because Beta cannot be negative
+    real<lower=0.55, upper=0.95> Beta; // Given mean is 0.025, the range would be truncated because Beta cannot be negative
   real<lower=0.19, upper=0.75> tao;
   real<lower=0, upper=0.8> alpha; // Mean=0.3, so range is 0.3±0.5, lower bound truncated at 0
   real<lower=0, upper=1> psi; // Mean=1/.169, requires calculating the actual value and then ±0.5, truncating bounds as necessary
   real<lower=0, upper=0.969> gamma_pi; // Mean=0.469, so range is 0.469±0.5, upper bound truncated at 1
-  real<lower=0, upper=1> gamma_w; // Mean=0.763, so range is 0.763±0.5, upper bound truncated at 1
+  real<lower=0.5, upper=1> gamma_w; // Mean=0.763, so range is 0.763±0.5, upper bound truncated at 1
     
   real<lower=0, upper=1> lambda_w;
   real<lower=0, upper=1> zeta_ps;
@@ -460,15 +460,15 @@ parameters {
   real<lower=0.853, upper=1.853> sigma_c;
   real<lower=0.073, upper=1> h;
   real<lower=0.908, upper=1.908> phi;
-  real<lower=0, upper=1> phi_uppercase; // Mean=1/6.771, requires calculating the actual value and then ±0.5, truncating bounds as necessary
+  real<lower=0.5, upper=1.2> phi_uppercase; // Mean=1/6.771, requires calculating the actual value and then ±0.5, truncating bounds as necessary
   real<lower=0, upper=1> rbar_k; // Depends on Beta, the range might need to be dynamically calculated
   real<lower=8.3, upper=9.3> Ky;
   real<lower=0, upper=0.836> sigma_eta_C;
-  real<lower=21.5, upper=22.5> Invy;
-  real<lower=0.1, upper=1.1> Cy; // Mean=0.6, so range is 0.6±0.5, upper bound truncated at 1
+  real<lower=21.75, upper=22.25> Invy;
+  real<lower=0.3, upper=0.9> Cy; // Mean=0.6, so range is 0.6±0.5, upper bound truncated at 1
   real<lower=0, upper=1> ky; // Computed from Invy/tao, so range needs to be calculated based on those values
   real<lower=0, upper=1> gy; // Computed from 1-Cy-Invy, so range needs to be calculated based on those values
-  real<lower=0, upper=0.64> r_pi;
+  real<lower=0.3, upper=0.84> r_pi;
   real<lower=0, upper=0.599> r_y;
   real<lower=0, upper=0.659> Ry_delta;
    real<lower=0, upper=1> rho;
@@ -480,7 +480,7 @@ parameters {
   real<lower=0, upper=1> rh_i;
   
   
-  real<lower=0> rho_er; // Since rho_er=0, it is set as the lower bound
+ // real<lower=0> rho_er; // Since rho_er=0, it is set as the lower bound
   real<lower=0, upper=1> rho_lamdaw; // Since rho_lamdaw=0, it is set as the lower bound
   real<lower=0, upper=1> rho_q; // Since rho_q=0, it is set as the lower bound
   real<lower=0, upper=1> rho_lamda_p; // Since rho_lamda_p=0, it is set as the lower bound
@@ -618,22 +618,74 @@ fit <- sampling(model, data =data_list , chains = 4, iter = 6000, warmup = 1000)
 library(bayesplot)
 ```
 ```{r}
-# Extract parameter names again to confirm
-param_names <- dimnames(params)[[3]]
-print(param_names)
-# Using ggplot2 for a custom trace plot if 'bayesplot' fails
-if (exists("beta_data")) {
-    library(ggplot2)
-    beta_df <- data.frame(Iteration = rep(1:nrow(beta_data), ncol(beta_data)),
-                          Beta = as.vector(t(beta_data)),
-                          Chain = rep(1:ncol(beta_data), each = nrow(beta_data)))
-    ggplot(beta_df, aes(x = Iteration, y = Beta, color = as.factor(Chain))) +
-        geom_line() +
-        labs(title = "Trace Plot for Beta", x = "Iteration", y = "phi") +
-        theme_minimal()
-}
+setwd("C:/Users/gealy/OneDrive/Documents/New folder (2)")
+getwd()
 
 ```
+```{r}
+# Assuming 'fit' is your Stan model object
+summary_stats <- summary(fit)$summary
+
+# Convert the matrix to a data frame where rows are parameters and columns are summary statistics
+df_summary_stats <- as.data.frame(summary_stats)
+
+# Set the row names as a column if needed
+df_summary_stats$parameter <- rownames(df_summary_stats)
+
+# Now df_summary_stats is a data frame with each parameter as a row and statistics as columns
+print(df_summary_stats)
+
+```
+
+
+```{r}
+
+options(scipen = 999)
+# Ensure ggplot2 is loaded
+library(ggplot2)
+setwd("C:/Users/gealy/OneDrive/Documents/New folder (2)")
+getwd()
+# Ensure params are extracted with structure maintained
+params <- extract(fit, permuted=FALSE)
+ param_names <- dimnames(params)[[3]]  # Extract parameter names
+color_scheme_set("brightblue")
+
+# Loop through each parameter and generate plots
+for (param_name in param_names) {
+    if (param_name != "lp__") {  # Skip the log probability parameter
+        param_data <- as.array(params[,, param_name])
+        if (is.array(param_data)) {
+            # Create a data frame for ggplot
+            param_df <- data.frame(
+                Iteration = rep(1:nrow(param_data), ncol(param_data)),
+                Value = as.vector(t(param_data)),
+                Chain = rep(1:ncol(param_data), each = nrow(param_data)),
+                Parameter = param_name  # Include parameter name for clarity
+            )
+            
+            # Generate the plot
+            p <- ggplot(param_df, aes(x = Iteration, y = Value, color = as.factor(Chain))) +
+                geom_line() +
+                labs(title = paste("Trace Plot for", param_name), x = "Iteration", y = param_name) +
+                theme_minimal()
+            
+            # Print the plot to the console or save to file
+            print(p)
+            # Optionally, save the plot to a file
+            ggsave(paste0("Trace_", param_name, ".png"), plot = p, width = 10, height = 8)
+            
+            # Clear the plot if running in a script to save memory
+            dev.off()  # This resets the plotting device
+        } else {
+            cat(param_name, "data could not be converted to an array correctly.\n")
+        }
+    }
+}
+
+
+```
+
+
 ```{r}
 # Access data directly from the environment
 beta_data <- get("Beta", envir = .GlobalEnv)
