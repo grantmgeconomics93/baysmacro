@@ -10,7 +10,7 @@ tao=0.025
 alpha =0.3
 psi=1/.169
 gamma_p=.469
-gamma_w=.763
+gamma_w=.783
 lambda_w=.5
 zeta_ps=.908
 zeta_ws=0.737
@@ -24,7 +24,7 @@ Ky=8.8
 sigma_eta_C<- 0.336
 Invy=22
 Cy=0.6
-ky=Invy/tao
+Ky=Invy/tao
 gy=1-Cy-Invy
 r_pi_g=0.14
 r_y=0.099
@@ -197,7 +197,7 @@ View(merged_df)
 ```{r}
 
 # Assuming your data frame is named df
-merged_df <- merged_df[265:629, ]
+merged_df <- merged_df[425:676, ]
 
 
 ```
@@ -228,10 +228,7 @@ final <- cleaned_df %>%
   )
 
 ```
-```{r}
-# Assuming your data frame is named df
-final <- final[2:121, ]
-```
+
 ```{r}
 # Real-time running average calculation
 real_time_running_average <- function(data, i, window_size) {
@@ -245,40 +242,43 @@ real_time_running_average <- function(data, i, window_size) {
 }
 ```
 
+```{r}
+final=final[2:84,]
+```
 
 ```{r}
 # Initialize the dataframe with the first 4rhows set to 1
 my_data <- data.frame(
-    time = 1:120,
+    time = 1:83,
    
     
-    K_hat=rep(350,120),
-    r_k_star=rep(-500,120),
+    K_hat=rep(350,83),
+    r_k_star=rep(-500,83),
     
    
-    Q_hat = rep(14,120),
-    pi_bar = rep(14,120),
-    epsilon_C = rep(1, 120),
-    epsilon_Q = rep(1, 120),
-     epsilon_I = rep(1,120),
-    epsilon_W = rep(1, 120),
-    epsilon_R = rep(1, 120),
-    epsilon_Pi=rep(1,120),
-    epsilon_L=rep(1,120),
-    epsilon_G=rep(1,120),
+    Q_hat = rep(14,83),
+    pi_bar = rep(3,83),
+    epsilon_C = rep(1, 83),
+    epsilon_Q = rep(1, 83),
+     epsilon_I = rep(1,83),
+    epsilon_W = rep(1, 83),
+    epsilon_R = rep(1, 83),
+    epsilon_Pi=rep(1,83),
+    epsilon_L=rep(1,83),
+    epsilon_G=rep(1,83),
     
-     epsilon_pitwo=rep(1,120),
-    expected_K_hat_next=rep(350,120),
+     epsilon_pitwo=rep(1,83),
+    expected_K_hat_next=rep(350,83),
     
 
-    expected_Q_hat_next = rep(14, 120),
+    expected_Q_hat_next = rep(14, 83),
    
   
 
    # Lagged values for the firstrhow would be NA
-    Q_hat_lag1 = rep(14, 120),
+    Q_hat_lag1 = rep(14, 83),
     
-    K_hat_lag1 = rep(350,120)
+    K_hat_lag1 = rep(350,83)
 )
  my_data$C_hat =final$Consumption_growth
  my_data$C_hat_lag1=final$Consumption_growth
@@ -307,7 +307,7 @@ my_data <- data.frame(
 ```{r}
 
 # Before the loop, call the calculate_ema_4th_order function to get expected values
-for (i in 2:120) {
+for (i in 2:83) {
     # Update lagged values
     my_data$C_hat_lag1[i] <- my_data$C_hat[i-1]
     my_data$I_hat_lag1[i] <- my_data$I_hat[i-1]
@@ -390,7 +390,7 @@ data_list <- list(
   epsilon_G = my_data$epsilon_G,
   epsilon_R = my_data$epsilon_R,
   r_k_star=my_data$r_k_star,
-  epsilon_W = my_data$W_hat,
+  epsilon_W = my_data$epsilon_W,
   output_growth_vector = final$Output_growth,
   consumption_growth_vector = final$Consumption_growth,
   investment_growth_vector = final$Investment_growth,
@@ -446,27 +446,27 @@ data {
 
 parameters {
  
-    real<lower=0.55, upper=0.95> Beta; // Given mean is 0.025, the range would be truncated because Beta cannot be negative
-  real<lower=0.19, upper=0.75> tao;
+    real<lower=0.95, upper=1> Beta; // Given mean is 0.025, the range would be truncated because Beta cannot be negative
+  real<lower=0.019, upper=0.035> tao;
   real<lower=0, upper=0.8> alpha; // Mean=0.3, so range is 0.3±0.5, lower bound truncated at 0
   real<lower=0, upper=1> psi; // Mean=1/.169, requires calculating the actual value and then ±0.5, truncating bounds as necessary
   real<lower=0, upper=0.969> gamma_pi; // Mean=0.469, so range is 0.469±0.5, upper bound truncated at 1
-  real<lower=0.5, upper=1> gamma_w; // Mean=0.763, so range is 0.763±0.5, upper bound truncated at 1
+  real<lower=0.5, upper=1> gamma_w; // Mean=0.783, so range is 0.783±0.5, upper bound truncated at 1
     
   real<lower=0, upper=1> lambda_w;
-  real<lower=0, upper=1> zeta_ps;
+  real<lower=0.9, upper=1> zeta_ps;
   real<lower=0, upper=1> zeta_ws;
   real<lower=1.9, upper=2.9> sigma_L;
   real<lower=0.853, upper=1.853> sigma_c;
-  real<lower=0.073, upper=1> h;
+  real<lower=0.1, upper=0.6> h;
   real<lower=0.908, upper=1.908> phi;
-  real<lower=0.5, upper=1.2> phi_uppercase; // Mean=1/6.771, requires calculating the actual value and then ±0.5, truncating bounds as necessary
+  real<lower=0.9, upper=1.25> phi_uppercase; // Mean=1/6.771, requires calculating the actual value and then ±0.5, truncating bounds as necessary
   real<lower=0, upper=1> rbar_k; // Depends on Beta, the range might need to be dynamically calculated
   real<lower=8.3, upper=9.3> Ky;
   real<lower=0, upper=0.836> sigma_eta_C;
-  real<lower=21.75, upper=22.25> Invy;
+  real<lower=0.15, upper=0.25> Invy;
   real<lower=0.3, upper=0.9> Cy; // Mean=0.6, so range is 0.6±0.5, upper bound truncated at 1
-  real<lower=0, upper=1> ky; // Computed from Invy/tao, so range needs to be calculated based on those values
+ 
   real<lower=0, upper=1> gy; // Computed from 1-Cy-Invy, so range needs to be calculated based on those values
   real<lower=0.3, upper=0.84> r_pi;
   real<lower=0, upper=0.599> r_y;
@@ -582,7 +582,7 @@ model {
     
    hours_vector[t]~ normal(-wage_growth_vector[t] + (1+psi)*ffr_vector[t]+ kapital[t-1],2.57808);
    
-   output_growth_vector[t] ~ normal((1 - (tao*ky) - gy) * consumption_growth_vector[t] + (tao*ky) * investment_growth_vector[t] + gy *epsilon_G[t],15.30617);
+   output_growth_vector[t] ~ normal((1 - (tao*Ky) - gy) * consumption_growth_vector[t] + (tao*Ky) * investment_growth_vector[t] + gy *epsilon_G[t],15.30617);
       
 // Breaking down the calculation into parts
  real parta = (Beta / (1 + Beta * gamma_pi)) * (inflation_vector[t-1]-pi_bar[t]);
@@ -590,7 +590,7 @@ model {
  real partc =  (1/(1 - Beta * gamma_pi))* (((1-Beta*zeta_ps)*(1-zeta_ps))/zeta_ps)*(alpha*ffr_vector[t]+((1-alpha)*wage_growth_vector[t])-epsilon_pitwo[t]-(1-alpha)*gamma_w);
  real parte =epsilon_PI[t];
 // Combine parts
-  inflation_vector[t]~  normal(parta + partb + partc + parte + pi_bar[t],0.6454431);
+  inflation_vector[t]~  normal(parta + partb + partc + parte + pi_bar[t],0.8354431);
    
      real part1w = (Beta / (1 + Beta)) * wage_growth_vector[t];
     real part2w = (1 / (1 + Beta)) * wage_growth_vector[t-1];
@@ -609,6 +609,10 @@ model {
 
 
 ```
+```{r}
+
+```
+
 
 ```{r}
 fit <- sampling(model, data =data_list , chains = 4, iter = 6000, warmup = 1000)
@@ -695,66 +699,8 @@ beta_data_from_list <- param_data_list[["Beta"]]
 
 ```
 
+   
 
-```{r}
-Warning messages:
-1: There were 18220 divergent transitions after warmup. See
-https://mc-stan.org/misc/warnings.html#divergent-transitions-after-warmup
-to find out why this is a problem and how to eliminate them. 
-2: Examine the pairs() plot to diagnose sampling problems
- 
-3: Tail Effective Samples Size (ESS) is too low, indicating posterior variances and tail quantiles may be unreliable.
-Running the chains for more iterations may help. See
-https://mc-stan.org/misc/warnings.html#tail-ess 
-```
-
-```{r}
-my_data$I_hat[i] = (1 / (1 + Beta)) * my_data$I_hat_lag1[i] +   
-   (Beta / (1 + Beta)) * my_data$expected_I_hat_next[i] +
-         ((1/phi_uppercase)/(1+Beta))*my_data$Q_hat[i]+my_data$epsilon_I[i]
- 
- my_data$K_hat[i]=(1-tao)*my_data$K_hat_lag1[i]+tao*my_data$I_hat_lag1[i]
-   tao*my_data$epsilon_I[i]
-    
-   my_data$L_hat[i] = -my_data$W_hat[i] + (1+psi)*my_data$R_hat[i]+ my_data$K_hat_lag1[i]
-   
-   my_data$Y_hat[i] = (1 - (tao*ky) - gy) * my_data$C_hat[i] + (tao*ky) * my_data$I_hat[i] + gy *my_data$epsilon_G[i]
-  
-   
-# Breaking down the calculation into parts
-parta <- (Beta / (1 + Beta * gamma_pi)) * (my_data$expected_Pi_hat_next[i-1]-my_data$pi_bar[i])
-partb<- (gamma_pi / (1 + Beta * gamma_pi)) * (inflation_vector[t] -pi_bar[t]) # Check if this should be [i] or [i-1]
-partc <-  (1/(1 - Beta * gamma_pi))* (((1-Beta*zeta_ps)*(1-zeta_ps))/zeta_ps)*(alpha*ffr_vector[t]+((1-alpha)*wage_growth_vector[t])-epsilon_pitwo[t]-(1-alpha)*gamma_w) 
-parte <- epsilon_PI[i]
-# Combine parts
- my_data$Pi_hat[i]<- normal(parta + partb + partc + parte + my_data$pi_bar[i],) 
- # Calculating individual parts of the equation
-    part1r <- my_data$pi_bar[i]
-    part2r <- rho * (my_data$R_hat_lag1[i] - my_data$Pi_bar_lag1[i])
-   # part3r <- (1 - rho) * ((r_pi * (my_data$Pi_hat_lag1[i] - my_data$Pi_bar_lag1[i]))+(r_y*(my_data$Y_hat_lag1[i]-my_data$YP_hat_lag1[i])))
-   part4r=r_pi_g*((my_data$Pi_hat[i]- my_data$pi_bar[i])-(my_data$Pi_hat_lag1[i] -my_data$Pi_bar_lag1[i]))
-   #part5r=Ry_delta*((my_data$Y_hat[i]- my_data$YP_hat[i])-(my_data$Y_hat_lag1[i]- my_data$YP_hat_lag1[i]))
-   part6r=my_data$epsilon_R[i]
-    
-    # Combining all parts to calculate R_hat for the current index
-    my_data$R_hat[i] <- part1r + part2r + part4r  + part6r 
-     # Taylor rule equation
- 
-    # Break down the equation into parts as before
-  # Break down the equation into parts as before
-    part1w <- (Beta / (1 + Beta)) * my_data$expected_W_hat_next[i]
-    part2w <- (1 / (1 + Beta)) * my_data$W_hat_lag1[i]
-    part3w <- (Beta / (1 + Beta)) * (my_data$expected_Pi_hat_next[i-1] - my_data$pi_bar[i])
-    part4w <- ((1 + (Beta * gamma_w)) / (1 + Beta)) * (my_data$Pi_hat_lag1[i] - my_data$pi_bar[i])
-    part5w <- (gamma_w / (1 + Beta)) * (my_data$expected_Pi_hat_next[i-1] - my_data$pi_bar[i])
-    # Calculate the complex adjustment part
-    adjustment_factor <- (1/(1+Beta))*((1 - (Beta * zeta_ws) * (1 - zeta_ws)) / (1 + ((1 - lambda_w) * sigma_L) / lambda_w) * zeta_ws)
-    complex_part <- adjustment_factor *( (my_data$W_hat_lag1[i] - (sigma_L * my_data$L_hat_lag1[i]) - (1 / (1 - h) )* (my_data$C_hat[i] -(h* my_data$C_hat_lag1[i]))  ))+my_data$epsilon_L[i] 
-    # Combine all parts for the final calculation of W_hat
-   my_data$W_hat[i] <- part1w + part2w + part3w - part4w + part5w - complex_part + my_data$epsilon_W[i]
-      # Debugging code to print the value of each part after calculation
-   
-```
 ```{r}
 
 library(actuar)
