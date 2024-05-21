@@ -450,12 +450,12 @@ parameters {
   real<lower=0.019, upper=0.035> tao;
   real<lower=0, upper=0.8> alpha; // Mean=0.3, so range is 0.3±0.5, lower bound truncated at 0
   real<lower=0, upper=1> psi; // Mean=1/.169, requires calculating the actual value and then ±0.5, truncating bounds as necessary
-  real<lower=0, upper=0.969> gamma_pi; // Mean=0.469, so range is 0.469±0.5, upper bound truncated at 1
+  real<lower=0.3, upper=0.5> gamma_pi; // Mean=0.469, so range is 0.469±0.5, upper bound truncated at 1
   real<lower=0.5, upper=1> gamma_w; // Mean=0.783, so range is 0.783±0.5, upper bound truncated at 1
     
-  real<lower=0, upper=1> lambda_w;
+  real<lower=0.3, upper=0.7> lambda_w;
   real<lower=0.9, upper=1> zeta_ps;
-  real<lower=0, upper=1> zeta_ws;
+  real<lower=0.5, upper=1> zeta_ws;
   real<lower=1.9, upper=2.9> sigma_L;
   real<lower=0.853, upper=1.853> sigma_c;
   real<lower=0.1, upper=0.6> h;
@@ -471,7 +471,7 @@ parameters {
   real<lower=0.3, upper=0.84> r_pi;
   real<lower=0, upper=0.599> r_y;
   real<lower=0, upper=0.659> Ry_delta;
-   real<lower=0, upper=1> rho;
+   real<lower=0.8, upper=1> rho;
   real<lower=0, upper=1> rho_el;
   real<lower=0, upper=1> rho_ea;
   real<lower=0, upper=1> rho_eb;
