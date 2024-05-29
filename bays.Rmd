@@ -152,12 +152,13 @@ fedfunds=read_excel("FEDFUNDS.xls")
 personalconsumption=read_excel("personalconsumption.xlsx")
 realGDP=read_excel("realgdp.xlsx")
 compensation =read_excel("compensation .xlsx")
+GDPPOT <- read_excel("GDPPOT.xls")
 
 
 ```
 ```{r}
 # List of your data frames
-df_list <- list(averageweeklyproductionhours, employment, gdpdeflator, population, investment, fedfunds, personalconsumption, realGDP,compensation)
+df_list <- list(averageweeklyproductionhours, employment, gdpdeflator, population, investment, fedfunds, personalconsumption, realGDP,compensation,GDPPOT)
 
 # Function to convert the first column to Date and the second to numeric
 convert_columns <- function(df) {
@@ -170,7 +171,7 @@ convert_columns <- function(df) {
 converted_df_list <- lapply(df_list, convert_columns)
 
 # If you want to replace the original data frames in your environment with the converted ones:
-names(converted_df_list) <- c("averageweeklyproductionhours", "employment", "gdpdeflator", "population", "investment", "fedfunds", "personalconsumption", "realGDP","compensation")
+names(converted_df_list) <- c("averageweeklyproductionhours", "employment", "gdpdeflator", "population", "investment", "fedfunds", "personalconsumption", "realGDP","compensation","GDPPOT")
 list2env(converted_df_list, envir = .GlobalEnv)
 
 ```
@@ -211,6 +212,11 @@ View(cleaned_df)
 
 ```
 ```{r}
+cleaned_df<- cleaned_df %>%
+mutate(potential_gdp = GDPPOT* 1000000000)
+```
+
+```{r}
 # Assuming you've already loaded dplyr and lubridate libraries
 # If not, uncomment the next two lines
  library(dplyr)
@@ -219,6 +225,7 @@ View(cleaned_df)
 final <- cleaned_df %>%
   mutate(
     Output_growth = log(`real gdp` / population) * 100,
+    potential_gdp=log( potential_gdp/ population) * 100,
     Consumption_growth = log((PCE / `gdp deflator`) / population) * 100,
     Investment_growth = log((fpi / `gdp deflator`) / population) * 100,
     Wage_growth = log(compensation / `gdp deflator`) * 100,
@@ -303,6 +310,7 @@ my_data <- data.frame(
      my_data$W_hat=final$Wage_growth
      my_data$W_hat_lag1=final$Wage_growth
      my_data$expected_W_hat_next=final$Wage_growth
+     my_data$potential_gdp=final$potential_gdp
      
 ```
 ```{r}
@@ -369,35 +377,6 @@ my_data$Q_hat[i] = (my_data$R_hat[i] - my_data$expected_Pi_hat_next[i]) +
 
   
 ```
-```{r}
-library(dplyr)
-library(ggplot2)
-
-# Add row numbers to the data frame
-final <- final %>%
-  mutate(row_num = row_number())
-
-# Fit a polynomial regression model of a specified order
-poly_order <- 3 # Change this to the desired polynomial order
-poly_model <- lm(Output_growth ~ poly(row_num, poly_order, raw = TRUE), data = final)
-
-# Predict using the polynomial model
-final <- final %>%
-  mutate(potential_gdp = predict(poly_model))
-
-# Plot the data
-ggplot(final, aes(x = row_num)) +
-  geom_line(aes(y = Output_growth, color = "Actual Output Growth")) +
-  geom_line(aes(y = potential_gdp, color = "Polynomial Fit")) +
-  labs(title = "Actual Output Growth vs. Polynomial Fit",
-       x = "Time",
-       y = "Output Growth",
-       color = "Legend") +
-  theme_minimal() +
-  scale_color_manual(values = c("Actual Output Growth" = "red", "Polynomial Fit" = "blue"))
-
-
-```
 
 ```{r}
 library(dplyr)
@@ -455,6 +434,7 @@ if(!all(sapply(data_list[-1], length) == T)) {  # Exclude 'T' from the length ch
 # Check lengths of the variables
 lengths <- sapply(list(
   my_data$epsilon_C,
+  my_data$potential_gdp,
   my_data$epsilon_Q,
   my_data$epsilon_I,
   my_data$epsilon_Pi,
@@ -497,6 +477,7 @@ data_list <- list(
   r_k_star = my_data$r_k_star[1:T],
   inflationtaget=my_data$inflationtargot,
   epsilon_W = my_data$epsilon_W[1:T],
+  potential_gdp =my_data$potential_gdp[1:T],
   output_growth_vector = final$Output_growth[1:T],
   consumption_growth_vector = final$Consumption_growth[1:T],
   investment_growth_vector = final$Investment_growth[1:T],
@@ -533,6 +514,7 @@ data {
    vector[T] epsilon_W;
   vector[T] consumption_growth_vector ;    // Observed data
   vector[T] output_growth_vector;
+  vector[T]  potential_gdp;
   vector[T] investment_growth_vector;
   vector[T] wage_growth_vector;
   vector[T] hours_vector;
@@ -607,12 +589,12 @@ parameters {
   vector[T] kapital_shocked;
   vector[T] q_shocked;
   vector[T] r_k_star_shocked;
-  vector[T] inflationtaget_shocked;
+  vector[T]  inflationtaget_shocked;
 
   // Initialize with original values
   output_growth_shocked = output_growth_vector;
   consumption_growth_shocked = consumption_growth_vector;
-  investment_growth_shocked = investment_growth_vector;
+  investment_growth_shocked =investment_growth_vector;
   wage_growth_shocked = wage_growth_vector;
   hours_shocked = hours_vector;
   inflation_shocked = inflation_vector;
@@ -620,23 +602,20 @@ parameters {
   kapital_shocked = kapital;
   q_shocked = q;
   r_k_star_shocked = r_k_star;
-   inflationtaget_shocked =  inflationtaget;
+    inflationtaget_shocked =   inflationtaget;
 
   // Apply a 30% decrease in output growth at the specified time
  for (t in shock_time:min(shock_time + 4, T)) {
-  inflation_shocked[t] = inflation_shocked[t] + 12;
+  inflation_shocked[t] = inflation_shocked[t] + 2.6;
 }
 
 
   // Propagate the shock through other series
   for (t in (shock_time + 1):T) {
-  ffr_shocked[t] = inflationtaget_shocked[t] +
-                     rho * (ffr_shocked[t-1] - inflationtaget_shocked[t-1]) +
-                     (1 - rho) * (r_pi * (inflation_vector[t-1] -  inflationtaget_shocked[t-1]) + 
-                                  r_y * (output_growth_vector[t-1])) +
-                     Ry_delta * ((inflation_vector[t] -  inflationtaget[t]) - (inflation_vector[t-1]-inflationtaget_shocked[t-1])) +
-                     r_y * ((output_growth_vector[t]) - (output_growth_vector[t-1])) +
-                     epsilon_R[t];
+    ffr_shocked[t] = inflation_shocked[t-1] + 
+                   0.5 * (output_growth_shocked[t-1] - potential_gdp[t-1]) + 
+                   0.5 * (inflation_shocked[t-1] -  inflationtaget[t-1]) + 
+                    inflationtaget[t-1] + epsilon_R[t];
     real part1 = (h / (1 + h)) * consumption_growth_shocked[t-1]; 
     real part2 = (1 / (1 + h)) * consumption_growth_shocked[t-1]; 
     real part3 = ((sigma_c - 1) / (sigma_c * (1 + lambda_w) * (1 + h))) * (hours_shocked[t-1] - hours_shocked[t]);
@@ -704,15 +683,10 @@ model {
   
 
   for (t in 2:T)  {
-  ffr_shocked[t] ~ normal(
-      inflationtaget[t] +
-      rho * (ffr_shocked[t-1] - inflationtaget[t-1]) +
-      (1 - rho) * (r_pi * (inflation_vector[t-1] -  inflationtaget[t-1]) + 
-                   r_y * (output_growth_vector[t-1])) +
-      Ry_delta * ((inflation_vector[t] - inflationtaget_shocked[t]) - (inflation_vector[t-1] -  inflationtaget[t-1])) +
-      r_y * ((output_growth_vector[t]) - (output_growth_vector[t-1])) +
-      epsilon_R[t],
-      0.9217559);
+    ffr_shocked[t] ~ normal(inflation_shocked[t-1] + 
+                   0.5 * (output_growth_shocked[t-1] - potential_gdp[t-1]) + 
+                   0.5 * (inflation_shocked[t-1] -  inflationtaget[t-1]) + 
+                    inflationtaget[t] + epsilon_R[t],0.9217559);
     real part1 = (h / (1 + h)) * consumption_growth_vector[t-1]; 
     real part2 = (1 / (1 + h)) * consumption_growth_vector[t-1]; 
     real part3 = ((sigma_c - 1) / (sigma_c * (1 + lambda_w) * (1 + h))) * (hours_vector[t-1] - hours_vector[t]);
