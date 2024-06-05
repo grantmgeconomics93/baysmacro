@@ -212,14 +212,13 @@ View(cleaned_df)
 
 ```
 ```{r}
+library(dplyr)
 cleaned_df<- cleaned_df %>%
 mutate(potential_gdp = GDPPOT* 1000000000)
 ```
 
 ```{r}
-# Assuming you've already loaded dplyr and lubridate libraries
-# If not, uncomment the next two lines
- library(dplyr)
+
 # library(lubridate)
 
 final <- cleaned_df %>%
@@ -539,6 +538,13 @@ parameters {
   real<lower=0, upper=1> psi; // Mean=1/.169, requires calculating the actual value and then ±0.5, truncating bounds as necessary
   real<lower=0.3, upper=0.5> gamma_pi; // Mean=0.469, so range is 0.469±0.5, upper bound truncated at 1
   real<lower=0.5, upper=1> gamma_w; // Mean=0.7111, so range is 0.7111±0.5, upper bound truncated at 1
+   
+  real<lower=0.7, upper=2> alpha_C;  // Consumption growth scaling parameter
+  
+  real<lower=0.9, upper=1> alpha_I;  // Investment growth scaling parameter
+  real<lower=0.9, upper=1.7> alpha_W;  // Wage growth scaling parameter
+  real<lower=0.5, upper=2.3> alpha_H;  // Hours scaling parameter
+ 
     
   real<lower=0.3, upper=0.7> lambda_w;
   real<lower=0.9, upper=1> zeta_ps;
@@ -584,69 +590,73 @@ parameters {
   vector[T] investment_growth_shocked;
   vector[T] wage_growth_shocked;
   vector[T] hours_shocked;
+  vector[T] potential_gdp_shocked;
   vector[T] inflation_shocked;
   vector[T] ffr_shocked;
   vector[T] kapital_shocked;
   vector[T] q_shocked;
   vector[T] r_k_star_shocked;
   vector[T]  inflationtaget_shocked;
-
-  // Initialize with original values
-  output_growth_shocked = output_growth_vector;
-  consumption_growth_shocked = consumption_growth_vector;
-  investment_growth_shocked =investment_growth_vector;
-  wage_growth_shocked = wage_growth_vector;
-  hours_shocked = hours_vector;
-  inflation_shocked = inflation_vector;
-  ffr_shocked = ffr_vector;
+  output_growth_shocked=output_growth_vector;
+  consumption_growth_shocked=consumption_growth_vector;
+  investment_growth_shocked=investment_growth_vector;
+   wage_growth_shocked=wage_growth_vector;
+    hours_shocked= hours_vector;
+    inflation_shocked=inflation_vector;
+   ffr_shocked = ffr_vector;
   kapital_shocked = kapital;
   q_shocked = q;
   r_k_star_shocked = r_k_star;
-    inflationtaget_shocked =   inflationtaget;
+  inflation_shocked = inflation_vector;
+  inflationtaget_shocked = inflationtaget;
+  potential_gdp_shocked = potential_gdp;
+  output_growth_shocked = output_growth_vector;
 
   // Apply a 30% decrease in output growth at the specified time
  for (t in shock_time:min(shock_time + 4, T)) {
-  inflation_shocked[t] = inflation_shocked[t] + 2.6;
+  //inflation_shocked[t] = inflation_shocked[t] + 0;
 }
 
 
   // Propagate the shock through other series
   for (t in (shock_time + 1):T) {
-    ffr_shocked[t] = inflation_shocked[t-1] + 
-                   0.5 * (output_growth_shocked[t-1] - potential_gdp[t-1]) + 
-                   0.5 * (inflation_shocked[t-1] -  inflationtaget[t-1]) + 
-                    inflationtaget[t-1] + epsilon_R[t];
-    real part1 = (h / (1 + h)) * consumption_growth_shocked[t-1]; 
-    real part2 = (1 / (1 + h)) * consumption_growth_shocked[t-1]; 
-    real part3 = ((sigma_c - 1) / (sigma_c * (1 + lambda_w) * (1 + h))) * (hours_shocked[t-1] - hours_shocked[t]);
-    real part4 = -((1 - h) / ((1 + h)) * sigma_c) * (ffr_shocked[t] - inflation_shocked[t-1]);
-    real part5 = ((1 - h) / ((1 + h) * sigma_c)) * epsilon_C[t];
+       // ffr_shocked[t] = inflation_shocked[t-1] + 
+                    // 0.5 * ((output_growth_shocked[t-1] - potential_gdp_shocked[t-1])/ potential_gdp_shocked[t-1]) + 
+                    // 0.5 * (inflation_shocked[t-1] -inflationtaget_shocked[t-1]) +inflationtaget_shocked[t-1] +epsilon_R[t];
+    //real part1 = (h / (1 + h)) * consumption_growth_shocked[t-1]; 
+    //real part2 = (1 / (1 + h)) * consumption_growth_shocked[t-1]; 
+    //real part3 = ((sigma_c - 1) / (sigma_c * (1 + lambda_w) * (1 + h))) * (hours_shocked[t-1] - hours_shocked[t]);
+    //real part4 = -((1 - h) / ((1 + h)) * sigma_c) * (ffr_shocked[t] - inflation_shocked[t-1]);
+    //real part5 = ((1 - h) / ((1 + h) * sigma_c)) * epsilon_C[t];
 
-    consumption_growth_shocked[t] = part1 + part2 + part3 + part4 + part5;
+    //consumption_growth_shocked[t] = part1 + part2 + part3 + part4 + part5;
 
-    q_shocked[t] = -(ffr_shocked[t] - inflation_shocked[t-1]) + ((1-tao) / (1 - tao + r_k_star_shocked[t])) * q_shocked[t-1] + (r_k_star_shocked[t] / (1 - tao + r_k_star_shocked[t])) * ffr_shocked[t-1] + epsilon_Q[t];
-    investment_growth_shocked[t] = (1 / (1 + Beta)) * investment_growth_shocked[t-1] + (Beta / (1 + Beta)) * investment_growth_shocked[t-1] + ((1/phi_uppercase)/(1+Beta)) * q_shocked[t] + epsilon_I[t];
+    //q_shocked[t] = -(ffr_shocked[t] - inflation_shocked[t-1]) + ((1-tao) / (1 - tao + r_k_star_shocked[t])) * q_shocked[t-1] + (r_k_star_shocked[t] / (1 - tao + r_k_star_shocked[t])) * ffr_shocked[t-1] + epsilon_Q[t];
+    
+    //investment_growth_shocked[t] = (1 / (1 + Beta)) * investment_growth_shocked[t-1] + (Beta / (1 + Beta)) * investment_growth_shocked[t-1] + ((1/phi_uppercase)/(1+Beta)) * q_shocked[t] + epsilon_I[t];
+    
+    
 
-    kapital_shocked[t] = (1 - tao) * kapital_shocked[t - 1] + tao * investment_growth_shocked[t] + tao * epsilon_I[t];
+    //kapital_shocked[t] = (1 - tao) * kapital_shocked[t - 1] + tao * investment_growth_shocked[t] + tao * epsilon_I[t];
 
-    hours_shocked[t] = -wage_growth_shocked[t] + (1 + psi) * ffr_shocked[t] + kapital_shocked[t-1];
+    //hours_shocked[t] = -wage_growth_shocked[t] + (1 + psi) * ffr_shocked[t] + kapital_shocked[t-1];
 
-    output_growth_shocked[t] = (1 - (tao*Ky) - gy) * consumption_growth_shocked[t] + (tao*Ky) * investment_growth_shocked[t] + gy * epsilon_G[t];
+   // output_growth_shocked[t] = (1 - (tao*Ky) - gy) * consumption_growth_shocked[t] + (tao*Ky) * investment_growth_shocked[t] + gy * epsilon_G[t];
 
-    real parta = (Beta / (1 + Beta * gamma_pi)) * (inflation_shocked[t-1] - inflationtaget_shocked[t]);
-    real partb = (gamma_pi / (1 + Beta * gamma_pi)) * (inflation_shocked[t-1] - inflationtaget_shocked[t]);
-    real partc = (1/(1 - Beta * gamma_pi)) * (((1 - Beta * zeta_ps) * (1 - zeta_ps)) / zeta_ps) * (alpha * ffr_shocked[t] + ((1 - alpha) * wage_growth_shocked[t]) - epsilon_pitwo[t] - (1 - alpha) * gamma_w);
-    real parte = epsilon_PI[t];
-    inflation_shocked[t] = parta + partb + partc + parte +  inflationtaget_shocked[t];
+    //real parta = (Beta / (1 + Beta * gamma_pi)) * (inflation_shocked[t-1] - inflationtaget_shocked[t]);
+    //real partb = (gamma_pi / (1 + Beta * gamma_pi)) * (inflation_shocked[t-1] - inflationtaget_shocked[t]);
+    //real partc = (1/(1 - Beta * gamma_pi)) * (((1 - Beta * zeta_ps) * (1 - zeta_ps)) / zeta_ps) * (alpha * ffr_shocked[t] + ((1 - alpha) * wage_growth_shocked[t]) - epsilon_pitwo[t] - (1 - alpha) * gamma_w);
+    //real parte = epsilon_PI[t];
+    //inflation_shocked[t] = parta + partb + partc + parte +  inflationtaget_shocked[t];
 
-    real part1w = (Beta / (1 + Beta)) * wage_growth_shocked[t];
-    real part2w = (1 / (1 + Beta)) * wage_growth_shocked[t-1];
-    real part3w = (Beta / (1 + Beta)) * (inflation_shocked[t-1] - inflationtaget_shocked[t]);
-    real part4w = ((1 + (Beta * gamma_w)) / (1 + Beta)) * (inflation_shocked[t-1] - inflationtaget_shocked[t]);
-    real part5w = (gamma_w / (1 + Beta)) * (inflation_shocked[t-1] - inflationtaget_shocked[t]);
-    real adjustment_factor = (1 / (1 + Beta)) * ((1 - (Beta * zeta_ws) * (1 - zeta_ws)) / (1 + ((1 - lambda_w) * sigma_L) / lambda_w) * zeta_ws);
-    real complex_part = adjustment_factor * (wage_growth_shocked[t-1] - (sigma_L * hours_shocked[t]) - (1 / (1 - h)) * (consumption_growth_shocked[t] - (h * consumption_growth_shocked[t-1]))) + epsilon_L[t];
-    wage_growth_shocked[t] = part1w + part2w + part3w - part4w + part5w - complex_part + epsilon_W[t];
+    //real part1w = (Beta / (1 + Beta)) * wage_growth_shocked[t];
+    //real part2w = (1 / (1 + Beta)) * wage_growth_shocked[t-1];
+    //real part3w = (Beta / (1 + Beta)) * (inflationtaget_shocked[t-1] - inflation_shocked[t]);
+   // real part4w = ((1 + (Beta * gamma_w)) / (1 + Beta)) * (inflationtaget_shocked[t-1] - inflation_shocked[t]);
+    //real part5w = (gamma_w / (1 + Beta)) * (inflationtaget_shocked[t-1] - inflation_shocked[t]);
+   // real adjustment_factor = (1 / (1 + Beta)) * ((1 - (Beta * zeta_ws) * (1 - zeta_ws)) / (1 + ((1 - lambda_w) * sigma_L) / lambda_w) * zeta_ws);
+    //real complex_part = adjustment_factor * (wage_growth_shocked[t-1] - (sigma_L * hours_shocked[t]) - (1 / (1 - h)) * (consumption_growth_shocked[t] - (h * consumption_growth_shocked[t-1]))) + epsilon_L[t];
+    //wage_growth_shocked[t] = part1w + part2w + part3w - part4w + part5w - complex_part + epsilon_W[t];
   }
 }
 
@@ -671,6 +681,15 @@ model {
   rbar_k ~ normal(0.40, 0.10);
   alpha ~ normal(0.30, 0.05);
    
+
+
+// Normal distributions
+alpha_C ~ normal(0.9855119, 0.023170470);
+alpha_I ~ normal(0.9797158, 0.007438688);
+alpha_W ~ normal(1.3491620, 0.088049984);
+alpha_H ~ normal(1.3428200, 0.369923981);
+
+
    rho ~ beta(0.3, 2.625);
   rho_el ~ beta(0.3, 2.625);
   rho_ea ~ beta(0.3, 2.625);
@@ -683,25 +702,27 @@ model {
   
 
   for (t in 2:T)  {
-    ffr_shocked[t] ~ normal(inflation_shocked[t-1] + 
-                   0.5 * (output_growth_shocked[t-1] - potential_gdp[t-1]) + 
-                   0.5 * (inflation_shocked[t-1] -  inflationtaget[t-1]) + 
+    ffr_vector[t] ~ normal(inflation_vector[t-1] + 
+                   (0.5 * (output_growth_vector[t-1] -potential_gdp[t-1])/potential_gdp[t-1]) + 
+                   (0.5 * (inflation_vector[t-1] -  inflationtaget[t-1])) + 
                     inflationtaget[t] + epsilon_R[t],0.9217559);
     real part1 = (h / (1 + h)) * consumption_growth_vector[t-1]; 
-    real part2 = (1 / (1 + h)) * consumption_growth_vector[t-1]; 
-    real part3 = ((sigma_c - 1) / (sigma_c * (1 + lambda_w) * (1 + h))) * (hours_vector[t-1] - hours_vector[t]);
-    real part4 = -((1 - h) / ((1 + h)) * sigma_c) * (ffr_vector[t] - inflation_vector[t-1]);
+    real part2 = (1 / (1 + h)) * consumption_growth_vector[t]*alpha_C; 
+    real part3 = ((sigma_c - 1) / (sigma_c * (1 + lambda_w) * (1 + h))) * (hours_vector[t] - hours_vector[t]*alpha_H);
+    real part4 = -((1 - h) / ((1 + h)) * sigma_c) * (ffr_vector[t] - inflation_vector[t]);
     real part5 = ((1 - h) / ((1 + h) * sigma_c)) * epsilon_C[t] ; // Assuming rho_c and eta_c are arrays generated in 'generated quantities'
 
     consumption_growth_vector[t] ~ normal(part1 + part2 + part3 + part4 + part5,18.22393);
      
      //r_k_star~ (-(kapital[t]-hours_vector[t])-wage_growth_vector[t],)
      //Output gap equation
- q[t] ~ normal(-(ffr_vector[t] - inflation_vector[t-1]) +
-      ((1-tao) / (1 - tao + r_k_star[t])) * q[t-1] +
-    (r_k_star[t] / (1 - tao + r_k_star[t])) * ffr_vector[t-1]+epsilon_Q[t],5.701086);
-    investment_growth_vector[t] ~ normal((1 / (1 + Beta)) * investment_growth_vector[t-1]     +(Beta / (1 + Beta)) * investment_growth_vector[t-1] +
+ q[t] ~ normal(-(ffr_vector[t] - inflation_vector[t]) +
+      ((1-tao) / (1 - tao + ffr_vector[t])) * q +
+    (r_k_star[t] / (1 - tao + ffr_shocked[t])) * ffr_vector[t-1]+epsilon_Q[t],5.701086);
+    
+    investment_growth_vector[t] ~ normal((1 / (1 + Beta)) * investment_growth_vector[t-1]     +(Beta / (1 + Beta)) * investment_growth_vector[t]*alpha_I +
          ((1/phi_uppercase)/(1+Beta))*q[t]+epsilon_I[t],17.244);
+      
          
    
    kapital[t] ~ normal((1 - tao) * kapital[t - 1] + tao * investment_growth_vector[t] + tao *epsilon_I[t], 27.24975);
@@ -712,18 +733,18 @@ model {
    output_growth_vector[t] ~ normal((1 - (tao*Ky) - gy) * consumption_growth_vector[t] + (tao*Ky) * investment_growth_vector[t] + gy *epsilon_G[t],15.30617);
       
 // Breaking down the calculation into parts
- real parta = (Beta / (1 + Beta * gamma_pi)) * (inflation_vector[t-1]-inflationtaget[t]);
+ real parta = (Beta / (1 + Beta * gamma_pi)) * (inflation_vector[t]-inflationtaget[t]);
  real partb = (gamma_pi / (1 + Beta * gamma_pi)) * (inflation_vector[t-1] -inflationtaget[t]) ;
- real partc =  (1/(1 - Beta * gamma_pi))* (((1-Beta*zeta_ps)*(1-zeta_ps))/zeta_ps)*(alpha*ffr_vector[t]+((1-alpha)*wage_growth_vector[t])-epsilon_pitwo[t]-(1-alpha)*gamma_w);
+ real partc =  (1/(1 - Beta * gamma_pi))* (((1-Beta*zeta_ps)*(1-zeta_ps))/zeta_ps)*(ffr_vector[t]+((1-alpha)*wage_growth_vector[t])-epsilon_pitwo[t]-(1-alpha)*gamma_w);
  real parte =epsilon_PI[t];
 // Combine parts
   inflation_vector[t]~  normal(parta + partb + partc + parte +  inflationtaget[t],0.11154431);
    
-     real part1w = (Beta / (1 + Beta)) * wage_growth_vector[t];
+     real part1w = (Beta / (1 + Beta)) * wage_growth_vector[t]*alpha_W;
     real part2w = (1 / (1 + Beta)) * wage_growth_vector[t-1];
-    real part3w = (Beta / (1 + Beta)) * (inflation_vector[t-1] - inflationtaget[t]);
-    real part4w = ((1 + (Beta * gamma_w)) / (1 + Beta)) * (inflation_vector[t-1] - inflationtaget[t]);
-    real part5w = (gamma_w / (1 + Beta)) * (inflation_vector[t-1] -inflationtaget[t]);
+    real part3w = (Beta / (1 + Beta)) * (inflationtaget[t-1] - inflation_vector[t]);
+    real part4w = ((1 + (Beta * gamma_w)) / (1 + Beta)) * (inflationtaget[t-1] - inflation_vector[t]);
+    real part5w = (gamma_w / (1 + Beta)) * (inflationtaget[t-1] -inflation_vector[t]);
     real adjustment_factor = (1/(1+Beta))*((1 - (Beta * zeta_ws) * (1 - zeta_ws)) / (1 + ((1 - lambda_w) * sigma_L) / lambda_w) * zeta_ws);
     real complex_part = adjustment_factor * (wage_growth_vector[t-1] - (sigma_L * hours_vector[t]) - (1 / (1 - h)) * (consumption_growth_vector[t] - (h * consumption_growth_vector[t-1]))) + epsilon_L[t]; 
 
@@ -762,9 +783,145 @@ generated quantities {
 
 
 ```{r}
-fit <- sampling(model, data =data_list , chains = 4, iter = 6000, warmup = 1000)
+fit <- sampling(model, data =data_list , chains = 2, iter = 6000, warmup = 1000)
 
 ```
+```{r}
+library(fitdistrplus)
+library(dplyr)
+
+
+# Extract samples from the fitted model
+samples <- rstan::extract(fit)
+
+# Variables of interest
+variables <- c("alpha_C", "alpha_I", "alpha_W", "alpha_H", "alpha_PI", "alpha_Q")
+
+# Organize samples into a list
+samples_list <- lapply(variables, function(var) {
+  as.vector(samples[[var]])
+})
+names(samples_list) <- variables
+
+# Function to fit normal and beta distributions and return the results
+fit_distributions <- function(var, samples) {
+  result <- try({
+    # Fit normal distribution
+    normal_fit <- fitdist(samples, "norm")
+    normal_params <- normal_fit$estimate
+    # Check for non-finite values in normal_params
+    if (any(!is.finite(normal_params))) {
+      message(paste("Skipping normal distribution fitting for", var, "due to non-finite values"))
+      return(NULL)
+    }
+    
+    # Scale samples to (0, 1) for beta distribution fitting
+    scaled_samples <- (samples - min(samples)) / (max(samples) - min(samples))
+    # Ensure no values are exactly 0 or 1
+    scaled_samples[scaled_samples == 0] <- 0.0001
+    scaled_samples[scaled_samples == 1] <- 0.9999
+
+    # Fit beta distribution
+    beta_fit <- fitdist(scaled_samples, "beta", start = list(shape1 = 1, shape2 = 7.6))
+    beta_params <- beta_fit$estimate
+    # Check for non-finite values in beta_params
+    if (any(!is.finite(beta_params))) {
+      message(paste("Skipping beta distribution fitting for", var, "due to non-finite values"))
+      return(NULL)
+    }
+    
+    return(list(normal = normal_params, beta = beta_params))
+  }, silent = TRUE)
+  
+  if (inherits(result, "try-error")) {
+    message(paste("Fitting failed for", var))
+    return(NULL)
+  }
+  
+  return(result)
+}
+
+# Initialize an empty data frame to store the results
+results_df <- data.frame(
+  variable = character(),
+  param1 = numeric(),
+  param2 = numeric(),
+  stringsAsFactors = FALSE
+)
+
+# Loop through each variable and fit the distributions
+for (var in names(samples_list)) {
+  fit_result <- fit_distributions(var, samples_list[[var]])
+  if (!is.null(fit_result)) {
+    if (!is.null(fit_result$normal)) {
+      results_df <- results_df %>%
+        bind_rows(data.frame(
+          variable = var,
+          param1 = fit_result$normal[1],
+          param2 = fit_result$normal[2],
+          stringsAsFactors = FALSE
+        ))
+    }
+    if (!is.null(fit_result$beta)) {
+      results_df <- results_df %>%
+        bind_rows(data.frame(
+          variable = paste0(var, "_beta"),
+          param1 = fit_result$beta[1],
+          param2 = fit_result$beta[2],
+          stringsAsFactors = FALSE
+        ))
+    }
+  }
+}
+
+# Print the results
+print(results_df)
+
+    
+
+
+```
+```{r}
+library(ggplot2)
+
+
+# Extract samples from the fitted model
+samples <- rstan::extract(fit)
+
+# Variables of interest
+variables <- c("alpha_C", "alpha_I", "alpha_W", "alpha_H")
+
+# Organize samples into a list and convert to data frame for ggplot2
+samples_list <- lapply(variables, function(var) {
+  data.frame(value = as.vector(samples[[var]]), variable = var)
+})
+
+# Combine all samples into a single data frame
+df <- do.call(rbind, samples_list)
+
+# Plot density plots for all variables
+plots <- list()
+for (var in variables) {
+  p <- ggplot(df[df$variable == var, ], aes(x = value)) +
+    geom_density(fill = "blue", alpha = 0.5) +
+    labs(title = paste("Density Plot of", var), x = var, y = "Density") +
+    theme_minimal()
+  
+  # Save the plot to a list
+  plots[[var]] <- p
+  
+  # Optionally, save each plot as an image file
+  ggsave(filename = paste0(var, "_density_plot.png"), plot = p, width = 6, height = 4)
+}
+
+# Display the plots
+for (var in variables) {
+  print(plots[[var]])
+}
+
+
+```
+
 
 ```{r}
 # Extract samples from the fitted model
@@ -804,7 +961,10 @@ upper_credible_interval_investment <- apply(samples$investment_growth_shocked_ou
 mean_wage_growth_shocked <- apply(samples$wage_growth_shocked_output, 2, mean)
 lower_credible_interval_wage <- apply(samples$wage_growth_shocked_output, 2, quantile, probs = 0.025)
 upper_credible_interval_wage <- apply(samples$wage_growth_shocked_output, 2, quantile, probs = 0.975)
-
+# potential_gdp
+potential_gdp<- apply(samples$potential_gdp_shocked, 2, mean)
+lower_credible_interval_hours <- apply(samples$potential_gdp_shocked, 2, quantile, probs = 0.025)
+upper_credible_interval_hours <- apply(samples$potential_gdp_shocked, 2, quantile, probs = 0.975)
 # Hours
 mean_hours_shocked <- apply(samples$hours_shocked_output, 2, mean)
 lower_credible_interval_hours <- apply(samples$hours_shocked_output, 2, quantile, probs = 0.025)
@@ -824,9 +984,6 @@ upper_credible_interval_ffr <- apply(samples$ffr_shocked_output, 2, quantile, pr
 
 
 
-```
-```{r}
-library(ggplot2)
 ```
 
 
@@ -875,6 +1032,62 @@ plot_list <- list(
 grid.arrange(grobs = plot_list, ncol = 2)
 
 ```
+```{r}
+
+
+# Extract parameters
+params <- extract(fit)
+
+
+# List of variable names corresponding to the state transition matrix
+variable_names <- c(
+  "Beta", "tao", "alpha", "psi", "gamma_pi", "gamma_w",
+  "lambda_w", "zeta_ps", "zeta_ws", "sigma_L",
+  "sigma_c", "h", "phi", "phi_uppercase", "rbar_k", "Ky",
+  "sigma_eta_C", "Invy", "Cy", "gy",
+  "r_pi", "r_y", "Ry_delta", "rho",
+  "rho_el", "rho_ea", "rho_eb", "rho_G", "rho_pi", "rh_i",
+  "rho_lamdaw", "rho_q", "rho_lamda_p", "rho_L", "output_growth_shocked", "consumption_growth_shocked",
+  "investment_growth_shocked", "wage_growth_shocked", "hours_shocked", "potential_gdp_shocked",
+  "inflation_shocked", "ffr_shocked", "kapital_shocked", "q_shocked", "r_k_star_shocked", "inflationtaget_shocked",
+  "output_growth_shocked_output", "consumption_growth_shocked_output", "investment_growth_shocked_output", "wage_growth_shocked_output",
+  "hours_shocked_output", "inflation_shocked_output", "ffr_shocked_output", "lp__"
+)
+# Construct the state transition matrix A
+# Adjust the dimensions and values according to your model
+A <- matrix(c(
+  params$Beta[1], params$tao[1], params$alpha[1], params$psi[1], params$gamma_pi[1], params$gamma_w[1],
+  params$lambda_w[1], params$zeta_ps[1], params$zeta_ws[1], params$sigma_L[1], params$sigma_c[1], params$h[1],
+  params$phi[1], params$phi_uppercase[1], params$rbar_k[1], params$Ky[1], params$sigma_eta_C[1], params$Invy[1],
+  params$Cy[1], params$gy[1], params$r_pi[1], params$r_y[1], params$Ry_delta[1], params$rho[1],
+  params$rho_el[1], params$rho_ea[1], params$rho_eb[1], params$rho_G[1], params$rho_pi[1], params$rh_i[1],
+  params$rho_lamdaw[1], params$rho_q[1], params$rho_lamda_p[1], params$rho_L[1], params$output_growth_shocked[1], params$consumption_growth_shocked[1]
+), nrow = 6, byrow = TRUE)  # Adjust the size based on your model's needs
+
+# Ensure A is square by matching the number of rows and columns
+if (nrow(A) != ncol(A)) {
+  stop("The state transition matrix A is not square.")
+}
+
+# Calculate eigenvalues
+eig_vals <- eigen(A)$values
+ 
+# Calculate eigenvalues
+eig_vals <- eigen(A)$values
+
+# Identify and map eigenvalues with magnitudes greater than 1 to their variable names
+unstable_eigenvalues <- eig_vals[abs(eig_vals) > 1]
+unstable_variables <- variable_names[abs(eig_vals) > 1]
+
+# Print unstable eigenvalues and corresponding variables
+print("Unstable eigenvalues and corresponding variables (magnitude > 1):")
+print(data.frame(variable = unstable_variables, eigenvalue = unstable_eigenvalues))
+
+# Output all eigenvalues for inspection
+print("All eigenvalues:")
+print(eig_vals)
+```
+
 
 ```{r}
 library(bayesplot)
