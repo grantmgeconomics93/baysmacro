@@ -232,7 +232,7 @@ final <- cleaned_df %>%
     Inflation = log(`gdp deflator` / lag(`gdp deflator`, 1)) * 100,
     Ffr = FEDFUNDS / 4
   )
- 
+final$GDPPOT=NULL
 
 ```
 
@@ -260,10 +260,10 @@ library(dplyr)
 
 # Assuming `final` is your dataframe and already exists in your environment
 # Extract the last 9 columns into a new dataframe
-last_9_vars <- final[, (ncol(final)-9):ncol(final)]
+last_9_vars <- final[, (ncol(final)-7):ncol(final)]
 
 # Use the existing correlation matrix
-cor_matrix <- cor(final[, (ncol(final)-9):ncol(final)])
+cor_matrix <- cor(final[, (ncol(final)-7):ncol(final)])
 ```
 
 
@@ -293,7 +293,7 @@ for (j in 1:ncol(last_9_vars)) {
         }
 
         # Calculate the t+1 value for this specific element
-        t_plus_1_estimates[i, j] <- last_9_vars[i, j] * (1 + (weighted_growth_rate + epsilon) / 100)
+        t_plus_1_estimates[i, j] <- last_9_vars[i, j] * (1 + (weighted_growth_rate+epsilon) / 100)
     }
 }
 
@@ -308,84 +308,63 @@ print(final_with_predictions)
 
 
 ```
+```{r}
+# Calculate the number of rows in the dataframe
+num_rows <- nrow(final_with_predictions)
+
+# Add this as a new column to the dataframe
+final_with_predictions$num_rows <- num_rows
+```
+
 
 ```{r}
 # Initialize the dataframe with the first 4rhows set to 1
 my_data <- data.frame(
-    time = 1:111,
    
+   time = 1:num_rows,
     
-    K_hat=rep(350,111),
-    r_k_star=rep(-500,111),
+    K_hat = rep(350, num_rows),
+    r_k_star = rep(-500, num_rows),
     
+    Q_hat = rep(14, num_rows),
+    pi_bar = rep(3, num_rows),
+    
+    epsilon_C = rep(1, num_rows),
+    epsilon_Q = rep(1, num_rows),
+    epsilon_I = rep(1, num_rows),
+    epsilon_W = rep(1, num_rows),
+    epsilon_R = rep(1, num_rows),
+    epsilon_Pi = rep(1, num_rows),
+    epsilon_L = rep(1, num_rows),
+    epsilon_G = rep(1, num_rows),
+    
+    epsilon_pitwo = rep(1, num_rows)
    
-    Q_hat = rep(14,111),
-    pi_bar = rep(3,111),
-    epsilon_C = rep(1, 111),
-    epsilon_Q = rep(1, 111),
-     epsilon_I = rep(1,111),
-    epsilon_W = rep(1, 111),
-    epsilon_R = rep(1, 111),
-    epsilon_Pi=rep(1,111),
-    epsilon_L=rep(1,111),
-    epsilon_G=rep(1,111),
-    
-     epsilon_pitwo=rep(1,111),
-    expected_K_hat_next=rep(1,111),
-expected_Pi_hat_next = rep(1, 111),
-expected_Q_hat_next = rep(1, 111),
-expected_R_hat_next = rep(1, 111),
-expected_W_hat_next = rep(1, 111),
-expected_L_hat_next = rep(1, 111),
-expected_C_hat_next = rep(1, 111),
-expected_I_hat_next = rep(1, 111),
-    
-   # C_expect=rep(559.3016,111),
-    #C_expect_lag=rep(559.3016,111),
-    #I_expect = rep(437.489, 111),
-  #I_expect_lag = rep(437.489, 111),
-  #W_expect = rep(-44.7975, 111),
-  #W_expect_lag = rep(-44.7975, 111),
-  #H_expect = rep(-154.5826, 111),
-  #H_expect_lag = rep(-154.5826, 111),
-  #PI_expect = rep(2.851030, 111),
-  #PI_expect_lag = rep(2.851030, 111),
-  #Q_expect = rep(13.0000000, 111),
-  #Q_expect_lag = rep(13.0000000, 111),
-    
-   
-   
-  
-
-   # Lagged values for the firstrhow would be NA
-    Q_hat_lag1 = rep(14, 111),
-    
-    K_hat_lag1 = rep(350,111)
 )
 
      
 # Assigning the appropriate columns from final_with_predictions to the new variables in my_data
-my_data$C_hat = final_with_predictions$Consumption_growth_t_plus_1
-my_data$C_hat_lag1 = final_with_predictions$Consumption_growth
-
-my_data$I_hat = final_with_predictions$Investment_growth_t_plus_1
-my_data$I_hat_lag1 = final_with_predictions$Investment_growth
-
-my_data$Y_hat = final_with_predictions$Output_growth_t_plus_1
-my_data$Y_hat_lag1 = final_with_predictions$Output_growth
-
-my_data$Pi_hat = final_with_predictions$Inflation_t_plus_1
-my_data$Pi_hat_lag1 = final_with_predictions$Inflation
-
-my_data$R_hat = final_with_predictions$Ffr_t_plus_1
-my_data$R_hat_lag1 = final_with_predictions$Ffr
-
-my_data$L_hat = final_with_predictions$Hours_t_plus_1
+my_data$C_hat_plus_1 = final_with_predictions$Consumption_growth_t_plus_1
+my_data$I_hat_plus_1 = final_with_predictions$Investment_growth_t_plus_1
+my_data$Y_hat_plus_1 = final_with_predictions$Output_growth_t_plus_1
+my_data$Pi_hat_plus_1 = final_with_predictions$Inflation_t_plus_1
+my_data$R_hat_plus_1 = final_with_predictions$Ffr_t_plus_1
+my_data$L_hat_plus_1= final_with_predictions$Hours_t_plus_1
+my_data$w_hat_plus_1=final_with_predictions$Wage_growth_t_plus_1
+my_data$C_hat=final_with_predictions$Consumption_growth
+my_data$I_hat=final_with_predictions$Investment_growth
+my_data$Y_hat=final_with_predictions$Output_growth
+my_data$Pi_hat=final_with_predictions$Inflation
+my_data$R_hat=final_with_predictions$Ffr
+my_data$L_hat=final_with_predictions$Hours
+my_data$w_hat=final_with_predictions$Wage_growth
+my_data$potential_gdp=final_with_predictions$potential_gdp
+my_data$inflationtaget=final_with_predictions$inf
      
 ```
 ```{r}
 # Before the loop, call the calculate_ema_4th_order function to get expected values
-for (i in 2:111) {
+for   (i in 2:nrow(my_data)){
     # Update lagged values
     my_data$C_hat_lag1[i] <- my_data$C_hat[i-1]
     my_data$I_hat_lag1[i] <- my_data$I_hat[i-1]
@@ -394,19 +373,13 @@ for (i in 2:111) {
     my_data$Pi_hat_lag1[i] <- my_data$Pi_hat[i-1]
     my_data$K_hat_lag1[i] <- my_data$K_hat[i-1]
     my_data$W_hat_lag1[i] <- my_data$W_hat[i-1]
-    
+     my_data$k_hat_lag1[i] <- my_data$k_hat[i-1]
     my_data$Y_hat_lag1[i] <- my_data$Y_hat[i-1]
     my_data$YP_hat_lag1[i] <- my_data$YP_hat[i-1]
      my_data$L_hat_lag1[i] <- my_data$L_hat[i-1]
     my_data$L_hat_lag1[i] <- my_data$L_hat[i-1]
-my_data$H_expect_lag[i] <- my_data$H_expect[i-1]
-my_data$W_expect_lag[i] <- my_data$W_expect[i-1]
-my_data$I_expect_lag[i] <- my_data$I_expect[i-1]
-my_data$PI_expect_lag[i] <- my_data$PI_expect[i-1]
-my_data$Q_expect_lag[i] <- my_data$Q_expect[i-1]
-    
-    
-     # Generate new shock value for epsilon_c for the currentrhow
+  
+# Generate new shock value for epsilon_c for the currentrhow
     eta_c <- rnorm(1, mean = 0, sd = sigma_eta_C)
     
 # Simulate a persistence parameter from the Beta distribution
@@ -436,58 +409,30 @@ my_data$Q_expect_lag[i] <- my_data$Q_expect[i-1]
        my_data$epsilon_R[i]=epsilon_R
      # Update pi_bar using the running average of Pi_hat
     my_data$pi_bar[i] <- real_time_running_average(my_data$Pi_hat, i, window_size = 5)  # window size is an example, adjust as needed
- part1 <- (h / (1 + h)) * my_data$C_hat_lag1[i]
+ 
 
-part3 <- ((sigma_c - 1) / (sigma_c * (1 + lambda_w) * (1 + h))) * ( my_data$expected_L_hat_next[i]- my_data$L_hat[i])
-part4 <- -((1 - h) / ((1 + h)) * sigma_c) * (my_data$R_hat[i] - my_data$expected_Pi_hat_next[i])
-part5 <- ((1 - h) / ((1 + h) * sigma_c)) * my_data$epsilon_C[i]
-# Combine all parts to calculate C_hat for the current index
-
-
+ hours_shocked[t] = -wage_growth_shocked[t] + (1 + psi) * ffr_shocked[t] + kapital_shocked[t-1]
+my_data$w_hathours_shocked[t]+wage_growth_shocked[t]-(1+psi)*ffr_shocked[t]
 
         
   # Output gap equation
-my_data$Q_hat[i] = -(my_data$R_hat[i] - my_data$expected_Pi_hat_next[i]) +
-       ((1-tao) / (1 - tao + r_k_star)) * my_data$expected_Q_hat_next[i] +
-        (r_k_star / (1 - tao + r_k_star)) * my_data$expected_R_hat_next[i] + my_data$epsilon_Q[i]
+my_data$Q_hat[i] = -(my_data$R_hat[i] - my_data$Pi_hat_plus_1[i]) +
+       ((1-tao) / (1 - tao + r_k_star)) * my_data$Q_hat[i-1] +
+        (r_k_star / (1 - tao + r_k_star)) * my_data$R_hat_plus_1[i] + my_data$epsilon_Q[i]
 
-
-
-my_data$I_hat[i] = (1 / (1 + Beta)) * my_data$I_hat_lag1[i] +   
-   (Beta / (1 + Beta)) * my_data$expected_I_hat_next[i] +
-         ((1/phi_uppercase)/(1+Beta))*my_data$Q_hat[i]+my_data$epsilon_I[i]
-  # Calculate the parts that do not include expected_I_hat_next[i]
-isolated_part <- my_data$I_hat[i] -
-                 ((1 / (1 + Beta)) * my_data$I_hat_lag1[i]) -
-                 ((1/phi_uppercase) / (1 + Beta)) * my_data$Q_hat[i] -
-                 my_data$epsilon_I[i]
 
 
  
  my_data$K_hat[i]=(1-tao)*my_data$K_hat_lag1[i]+tao*my_data$I_hat_lag1[i]
    tao*my_data$epsilon_I[i]
     
-   my_data$L_hat[i] = -my_data$W_hat[i] + my_data$R_hat[i]+ my_data$K_hat_lag1[i]
+  
    
-   my_data$Y_hat[i] = (1 - (tao*Ky) - gy) * my_data$C_hat[i] + (tao*Ky) * my_data$I_hat[i] + gy *my_data$epsilon_G[i]
-   # Break down the equation into parts as before
-    part1w <- (Beta / (1 + Beta)) * my_data$expected_W_hat_next[i-1]
-    part2w <- (1 / (1 + Beta)) * my_data$W_hat_lag1[i]
-    part3w <- (Beta / (1 + Beta)) * (my_data$expected_Pi_hat_next[i-1] - my_data$pi_bar[i])
-    part4w <- ((1 + (Beta * gamma_w)) / (1 + Beta)) * (my_data$Pi_hat_lag1[i] - my_data$pi_bar[i])
-    part5w <- (gamma_w / (1 + Beta)) * (my_data$expected_Pi_hat_next[i-1] - my_data$pi_bar[i])
-    # Calculate the complex adjustment part
-    adjustment_factor <- (1/(1+Beta))*((1 - (Beta * zeta_ws) * (1 - zeta_ws)) / (1 + ((1 - lambda_w) * sigma_L) / lambda_w) * zeta_ws)
-    complex_part <- adjustment_factor *( (my_data$W_hat_lag1[i] - (sigma_L * my_data$L_hat_lag1[i]) - (1 / (1 - h) )* (my_data$C_hat[i] - my_data$C_hat_lag1[i])  ))+my_data$epsilon_L[i] 
-    # Combine all parts for the final calculation of W_hat
-   my_data$W_hat[i] <- part1w + part2w + part3w - part4w + part5w - complex_part + my_data$epsilon_W[i]
-   # Recalculate all parts except part1w
+   
 
 
-      
- my_data$K_hat[i]=(1-tao)*my_data$K_hat_lag1[i]+tao*my_data$I_hat_lag1[i]
-   tao*my_data$epsilon_I[i]
-  my_data$r_k_star[i]=-(my_data$K_hat[i]- my_data$L_hat[i])+my_data$W_hat[i]
+  
+  my_data$r_k_star[i]=-(my_data$K_hat[i]- my_data$L_hat[i])+my_data$w_hat[i]
     
     }
 ```
@@ -497,110 +442,21 @@ isolated_part <- my_data$I_hat[i] -
 library(dplyr)
 
 # Assuming 'final' is your data frame
-my_data <- my_data %>% mutate(inflationtargot = 0.35)
+my_data <- my_data %>% mutate(inflationtarget = 0.35)
 ```
 
 
 ```{r}
 library(rstan)
 ```
-
-
 ```{r}
-# Calculate 'T' as the number of observations
-T <- nrow(final)  # This should be a single integer, not a vector
-
-# Combine vectors into a new dataframe with 'T' as a separate element
-data_list <- list(
-  T = T,  # 'T' is a single integer, not a vector
-  epsilon_C = my_data$epsilon_C,
-  epsilon_Q = my_data$epsilon_Q,
-  epsilon_I = my_data$epsilon_I,
-  epsilon_PI = my_data$epsilon_Pi,
-  epsilon_G = my_data$epsilon_G,
-  epsilon_R = my_data$epsilon_R,
-  r_k_star=my_data$r_k_star,
-  epsilon_W = my_data$epsilon_W,
-   expected_Pi_hat_next = my_data$expected_Pi_hat_next,
-expected_Q_hat_next = my_data$expected_Q_hat_next,
-expected_I_hat_next=my_data$expected_I_hat_next,
-expected_R_hat_next = my_data$expected_R_hat_next,
-expected_W_hat_next = my_data$expected_W_hat_next,
-expected_L_hat_next = my_data$expected_L_hat_next,
-expected_C_hat_next = my_data$expected_C_hat_next,
-  output_growth_vector = final$Output_growth,
-  consumption_growth_vector = final$Consumption_growth,
-  investment_growth_vector = final$Investment_growth,
-  wage_growth_vector = final$Wage_growth,
-  hours_vector = final$Hours,
-  inflation_vector = final$Inflation,
-  ffr_vector = final$Ffr,
-  kapital = my_data$K_hat,
-  q = my_data$Q_hat,
- 
-  pi_bar=my_data$pi_bar,
-  epsilon_pitwo= my_data$epsilon_pitwo,
-  epsilon_L= my_data$epsilon_L
-)
-
-# Ensure the list is correctly structured for Stan
-if(!all(sapply(data_list[-1], length) == T)) {  # Exclude 'T' from the length check
-  stop("The lengths of the vectors do not match the value of T.")
-}
-
-
-
-```
-```{r}
-
-# Check lengths of the variables
-lengths <- sapply(list(
-  my_data$epsilon_C,
-  my_data$potential_gdp,
-  my_data$epsilon_Q,
-  my_data$epsilon_I,
-  my_data$epsilon_Pi,
-  my_data$epsilon_G,
-  my_data$epsilon_R,
- my_data$r_k_star,
-  my_data$epsilon_W,
-  my_data$inflationtargot,
-  final$Output_growth,
-  final$Consumption_growth,
-  final$Investment_growth,
-  final$Wage_growth,
-  final$Hours,
-  final$Inflation,
-  final$Ffr,
- my_data$expected_I_hat_next,
-  my_data$expected_Pi_hat_next,
- my_data$expected_Q_hat_next,
- my_data$expected_R_hat_next,
- my_data$expected_W_hat_next,
-my_data$expected_L_hat_next,
-my_data$expected_C_hat_next,
-  my_data$K_hat,
-  my_data$Q_hat,
-  my_data$pi_bar,
-  my_data$epsilon_pitwo,
-  my_data$epsilon_L
-), length)
-
-# Print lengths to check if all are at least T
-print(lengths)
-# Desired length
-T <- 111
-
-# Check lengths
+# Re-check the lengths to see if they meet the expected length
 lengths <- sapply(my_data, length)
+print(lengths)
 
-# Identify vectors shorter than T
-short_vectors <- names(lengths)[lengths < T]
+# If lengths are correct, proceed to create the Stan data list
+T <- num_rows
 
-# Check if there are any short vectors and stop execution with a message
-if (length(short_vectors) > 0) {
-  stop(paste("The following vectors are shorter than", T, ":", paste(short_vectors, collapse=", ")))
-}
 # Combine vectors into a new list for Stan
 data_list <- list(
   T = T,  # 'T' is a single integer, not a vector
@@ -610,30 +466,31 @@ data_list <- list(
   epsilon_PI = my_data$epsilon_Pi[1:T],
   epsilon_G = my_data$epsilon_G[1:T],
   epsilon_R = my_data$epsilon_R[1:T],
-  expected_I_hat_next=my_data$expected_I_hat_next[1:T],
-  expected_Pi_hat_next = my_data$expected_Pi_hat_next[1:T],
-expected_Q_hat_next = my_data$expected_Q_hat_next[1:T],
-expected_R_hat_next = my_data$expected_R_hat_next[1:T],
-expected_W_hat_next = my_data$expected_W_hat_next[1:T],
-expected_L_hat_next = my_data$expected_L_hat_next[1:T],
-expected_C_hat_next = my_data$expected_C_hat_next[1:T],
-  r_k_star = my_data$r_k_star[1:T],
-  inflationtaget=my_data$inflationtargot,
   epsilon_W = my_data$epsilon_W[1:T],
-  potential_gdp =my_data$potential_gdp[1:T],
-  output_growth_vector = final$Output_growth[1:T],
-  consumption_growth_vector = final$Consumption_growth[1:T],
-  investment_growth_vector = final$Investment_growth[1:T],
-  wage_growth_vector = final$Wage_growth[1:T],
-  hours_vector = final$Hours[1:T],
-  inflation_vector = final$Inflation[1:T],
-  ffr_vector = final$Ffr[1:T],
-  kapital = my_data$K_hat[1:T],
-  q = my_data$Q_hat[1:T],
+  expected_C_hat_next = my_data$C_hat_plus_1[1:T],
+  expected_I_hat_next = my_data$I_hat_plus_1[1:T],
+  expected_Y_hat_next = my_data$Y_hat_plus_1[1:T],
+  expected_Pi_hat_next = my_data$Pi_hat_plus_1[1:T],
+  expected_R_hat_next = my_data$R_hat_plus_1[1:T],
+  expected_L_hat_next = my_data$L_hat_plus_1[1:T],
+  expected_W_hat_next = my_data$w_hat_plus_1[1:T],
+  r_k_star = my_data$r_k_star[1:T],
+  inflationtaget=my_data$inflationtarget[1:T],
+  potential_gdp=my_data$potential_gdp[1:T],
   pi_bar = my_data$pi_bar[1:T],
+  kapital = my_data$K_hat[1:T],
+  q= my_data$Q_hat[1:T],
+  potential_gdp=my_data$potential_gdp[1:T],
   epsilon_pitwo = my_data$epsilon_pitwo[1:T],
   epsilon_L = my_data$epsilon_L[1:T],
-  shock_time = 50,  # Example time point
+  consumption_growth_vector = my_data$C_hat[1:T],
+ investment_growth_vector = my_data$I_hat[1:T],
+ output_growth_vector= my_data$Y_hat[1:T],
+  inflation_vector = my_data$Pi_hat[1:T],
+  ffr_vector= my_data$R_hat[1:T],
+  hours_vector= my_data$L_hat[1:T],
+   wage_growth_vector= my_data$w_hat[1:T],
+  shock_time = 20,  # Example time point
   shock_value = -0.3  # Example shock value
 )
 
@@ -656,12 +513,11 @@ data {
    vector[T] epsilon_R;
    vector[T] epsilon_W;
    vector[T] expected_Pi_hat_next;
-  vector[T]expected_Q_hat_next;
+   vector[T] expected_C_hat_next;
   vector[T]expected_I_hat_next;
   vector[T]expected_R_hat_next;
   vector[T]expected_W_hat_next;  
   vector[T] expected_L_hat_next;
-  vector[T]expected_C_hat_next; 
   vector[T] consumption_growth_vector ;    // Observed data
   vector[T] output_growth_vector;
   vector[T]  potential_gdp;
@@ -737,7 +593,6 @@ parameters {
   vector[T] wage_growth_shocked;
   vector[T] hours_shocked;
   vector[T] expected_Pi_hat_next_shocked;
-  vector[T]expected_Q_hat_next_shocked;
   vector[T]expected_I_hat_next_shocked;
   vector[T]expected_R_hat_next_shocked;
   vector[T]expected_W_hat_next_shocked;   
@@ -751,7 +606,6 @@ parameters {
   vector[T] r_k_star_shocked;
   vector[T]  inflationtaget_shocked;
   expected_Pi_hat_next_shocked=expected_Pi_hat_next;
-  expected_Q_hat_next_shocked=expected_Q_hat_next;
   expected_I_hat_next_shocked=expected_I_hat_next;
   expected_R_hat_next_shocked=expected_R_hat_next;
   expected_W_hat_next_shocked=expected_W_hat_next;   
@@ -774,7 +628,7 @@ parameters {
 
   // Apply a 30% decrease in output growth at the specified time
  for (t in shock_time:min(shock_time + 4, T)) {
-  inflation_shocked[t] = inflation_shocked[t] + 1;
+  inflation_shocked[t] = inflation_shocked[t] ;
 }
 
 
@@ -791,7 +645,7 @@ parameters {
 
     consumption_growth_shocked[t] = part1 + part2 + part3 + part4 + part5;
 
-    q_shocked[t] = -(ffr_shocked[t] - inflation_shocked[t-1]) + ((1-tao) / (1 - tao + ffr_shocked[t])) * expected_Q_hat_next_shocked[t] +(ffr_shocked[t] / (1 - tao + ffr_shocked[t])) * ffr_shocked[t-1] + epsilon_Q[t];
+    q_shocked[t] = -(ffr_shocked[t] - inflation_shocked[t-1]) + ((1-tao) / (1 - tao + ffr_shocked[t])) * q_shocked[t-1] +(ffr_shocked[t] / (1 - tao + ffr_shocked[t])) * ffr_shocked[t-1] + epsilon_Q[t];
     
     investment_growth_shocked[t] = (1 / (1 + Beta)) * investment_growth_shocked[t-1] + (Beta / (1 + Beta)) *expected_I_hat_next_shocked[t] + ((1/phi_uppercase)/(1+Beta)) * q_shocked[t] + epsilon_I[t];
     
@@ -871,11 +725,10 @@ model {
      //r_k_star~ (-(kapital[t]-hours_vector[t])-wage_growth_vector[t],)
      //Output gap equation
  q[t] ~ normal(-(ffr_vector[t] - inflation_vector[t]) +
-      ((1-tao) / (1 - tao + ffr_vector[t])) *expected_Q_hat_next[t]+
-    (r_k_star[t] / (1 - tao + ffr_shocked[t])) * ffr_vector[t-1]+epsilon_Q[t],5.701086);
+      ((1-tao) / (1 - tao + ffr_vector[t])) *q[t-1]+
+    (r_k_star[t] / (1 - tao + ffr_vector[t])) * ffr_vector[t-1]+epsilon_Q[t],5.701086);
     
-    investment_growth_vector[t] ~ normal((1 / (1 + Beta)) * investment_growth_vector[t-1]     +(Beta / (1 + Beta)) *expected_I_hat_next[t] +
-         ((1/phi_uppercase)/(1+Beta))*q[t]+epsilon_I[t],17.244);
+    investment_growth_vector[t] ~ normal((1 / (1 + Beta)) * investment_growth_vector[t-1] +(Beta / (1 + Beta)) *expected_I_hat_next[t]+((1/phi_uppercase)/(1+Beta))*q[t]+epsilon_I[t],17.244);
       
          
    
@@ -915,7 +768,6 @@ model {
   vector[T] inflation_shocked_output;
   vector[T] ffr_shocked_output;
   vector[T] expected_Pi_hat_next_shocked_output;
-  vector[T] expected_Q_hat_next_shocked_output;
   vector[T] expected_I_hat_next_shocked_output;
   vector[T] expected_R_hat_next_shocked_output;
   vector[T] expected_W_hat_next_shocked_output;   
@@ -931,7 +783,6 @@ model {
   inflation_shocked_output = inflation_shocked;
   ffr_shocked_output = ffr_shocked;
   expected_Pi_hat_next_shocked_output = expected_Pi_hat_next_shocked;
-  expected_Q_hat_next_shocked_output = expected_Q_hat_next_shocked;
   expected_I_hat_next_shocked_output = expected_I_hat_next_shocked;
   expected_R_hat_next_shocked_output = expected_R_hat_next_shocked;
   expected_W_hat_next_shocked_output = expected_W_hat_next_shocked;
