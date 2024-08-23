@@ -9,7 +9,7 @@ Beta=.025
 tao=0.025
 alpha =0.3
 psi=1/.169
-gamma_p=.469
+gamma_pi=.469
 gamma_w=.7111
 lambda_w=.5
 zeta_ps=.908
@@ -20,7 +20,7 @@ h=0.573
 phi=1.408
 phi_uppercase=1/6.771
 rbar_k=(1/Beta)-1+tao
-Ky=8.8
+ky=8.8
 sigma_eta_C<- 0.336
 Invy=22
 Cy=0.6
@@ -220,19 +220,17 @@ mutate(potential_gdp = GDPPOT* 1000000000)
 ```{r}
 
 # library(lubridate)
-
 final <- cleaned_df %>%
   mutate(
-    Output_growth = log(`real gdp` / population) * 100,
-    potential_gdp=log( potential_gdp/ population) * 100,
-    Consumption_growth = log((PCE / `gdp deflator`) / population) * 100,
-    Investment_growth = log((fpi / `gdp deflator`) / population) * 100,
-    Wage_growth = log(compensation / `gdp deflator`) * 100,
-    Hours = log((`weekly_production_hours` * (employment / 100) / population)) * 100,
-    Inflation = log(`gdp deflator` / lag(`gdp deflator`, 1)) * 100,
+    Output_growth = c(NA, 100 * diff(log(`real gdp` / population))),
+    potential_gdp = c(NA, 100 * diff(log(potential_gdp / population))),
+    Consumption_growth = c(NA, 100 * diff(log((PCE / `gdp deflator`) / population))),
+    Investment_growth = c(NA, 100 * diff(log((fpi / `gdp deflator`) / population))),
+    Wage_growth = c(NA, 100 * diff(log(compensation / `gdp deflator`))),
+    Hours = log(`weekly_production_hours` * (employment / 100) / population) * 100,
+    Inflation = c(NA, 100 * diff(log(`gdp deflator`))),
     Ffr = FEDFUNDS / 4
   )
-final$GDPPOT=NULL
 
 ```
 
@@ -265,35 +263,36 @@ last_9_vars <- final[, (ncol(final)-7):ncol(final)]
 # Use the existing correlation matrix
 cor_matrix <- cor(final[, (ncol(final)-7):ncol(final)])
 ```
-
-
 ```{r}
-# Normalize the weights
+# Normalize the weights using the correlation matrix
 normalized_weights <- sweep(cor_matrix, 2, colSums(cor_matrix), FUN = "/")
 
 # Pre-allocate a matrix to store t+1 estimates for each row
 t_plus_1_estimates <- matrix(NA, nrow = nrow(last_9_vars) - 1, ncol = ncol(last_9_vars))
 colnames(t_plus_1_estimates) <- paste0(colnames(last_9_vars), "_t_plus_1")
 
-# Loop through each row except the last one
+# Loop through each variable (column)
 for (j in 1:ncol(last_9_vars)) {
     # Loop through each row except the last one
     for (i in 1:(nrow(last_9_vars) - 1)) {
-        # Calculate the growth rate for the current element
-        growth_rate <- (last_9_vars[i+1, j] - last_9_vars[i, j]) / last_9_vars[i, j] * 100
-        
-        # Apply the weighted growth rate using the existing correlation matrix
-        weighted_growth_rate <- growth_rate * normalized_weights[j, j]
-
-        # Generate random epsilon with conditional randomness
-        epsilon <- if (colnames(last_9_vars)[j] %in% c("Inflation", "Ffr")) {
-            runif(1, -6, 6)  # +/- 6% for Inflation and Ffr
+        # Check if the current variable is Hours, Inflation, or Ffr
+        if (colnames(last_9_vars)[j] %in% c("Hours", "Inflation", "Ffr")) {
+            # For Hours, Inflation, and Ffr, t+1 equals the previous value
+            t_plus_1_estimates[i, j] <- last_9_vars[i, j]
         } else {
-            runif(1, -0.4, 0.4)  # +/- 0.4% for other variables
-        }
+            # Use the current value directly and apply the normalized correlation weight
+            weighted_value <- last_9_vars[i, j] * normalized_weights[j, j]
 
-        # Calculate the t+1 value for this specific element
-        t_plus_1_estimates[i, j] <- last_9_vars[i, j] * (1 + (weighted_growth_rate+epsilon) / 100)
+            # Generate random epsilon with conditional randomness
+            epsilon <- if (colnames(last_9_vars)[j] %in% c("Inflation", "Ffr")) {
+                runif(1, -6, 6)  # +/- 6% for Inflation and Ffr
+            } else {
+                runif(1, -0.4, 0.4)  # +/- 0.4% for other variables
+            }
+
+            # Calculate the t+1 value for this specific element by adding epsilon
+            t_plus_1_estimates[i, j] <-.58* weighted_value + epsilon
+        }
     }
 }
 
@@ -306,8 +305,9 @@ final_with_predictions <- cbind(final[-nrow(final), ], t_plus_1_estimates_df)
 # Print the final dataframe with predictions
 print(final_with_predictions)
 
-
 ```
+
+
 ```{r}
 # Calculate the number of rows in the dataframe
 num_rows <- nrow(final_with_predictions)
@@ -323,11 +323,11 @@ my_data <- data.frame(
    
    time = 1:num_rows,
     
-    K_hat = rep(350, num_rows),
-    r_k_star = rep(-500, num_rows),
+    K_hat = rep(0, num_rows),
+    r_k_star = rep(0, num_rows),
     
-    Q_hat = rep(14, num_rows),
-    pi_bar = rep(3, num_rows),
+    Q_hat = rep(0, num_rows),
+    pi_bar = rep(1, num_rows),
     
     epsilon_C = rep(1, num_rows),
     epsilon_Q = rep(1, num_rows),
@@ -411,28 +411,30 @@ for   (i in 2:nrow(my_data)){
     my_data$pi_bar[i] <- real_time_running_average(my_data$Pi_hat, i, window_size = 5)  # window size is an example, adjust as needed
  
 
- hours_shocked[t] = -wage_growth_shocked[t] + (1 + psi) * ffr_shocked[t] + kapital_shocked[t-1]
-my_data$w_hathours_shocked[t]+wage_growth_shocked[t]-(1+psi)*ffr_shocked[t]
+ #hours_shocked[t] = -wage_growth_shocked[t] + (1 + psi) * ffr_shocked[t] + kapital_shocked[t-1]
 
+# my_data$I_hat[i] = (1 / (1 + Beta)) * my_data$I_hat[i-1] +(Beta / (1 + Beta)) *my_data$I_hat_plus_1[i]+((1/phi_uppercase)/(1+Beta))*my_data$Q_hat[i]+my_data$epsilon_I[t]
+#my_data$Q_hat[i] <- phi_uppercase * (1 + Beta) * (
+ # my_data$I_hat[i] - 
+  #(1 / (1 + Beta)) * my_data$I_hat[i-1] - 
+  #(Beta / (1 + Beta)) * my_data$I_hat_plus_1[i] - 
+ #my_data$epsilon_I[t]
+#)
         
   # Output gap equation
 my_data$Q_hat[i] = -(my_data$R_hat[i] - my_data$Pi_hat_plus_1[i]) +
-       ((1-tao) / (1 - tao + r_k_star)) * my_data$Q_hat[i-1] +
-        (r_k_star / (1 - tao + r_k_star)) * my_data$R_hat_plus_1[i] + my_data$epsilon_Q[i]
+       ((1-tao) / (1 - tao + r_k_star)) * (phi_uppercase * (1 + Beta) * (
+  my_data$I_hat[i] - (1 / (1 + Beta)) * my_data$I_hat[i-1] - 
+  (Beta / (1 + Beta)) * my_data$I_hat_plus_1[i] - my_data$epsilon_I[i]
+)) +(r_k_star / (1 - tao + r_k_star)) * my_data$R_hat_plus_1[i] + my_data$epsilon_Q[i]
 
 
 
  
- my_data$K_hat[i]=(1-tao)*my_data$K_hat_lag1[i]+tao*my_data$I_hat_lag1[i]
-   tao*my_data$epsilon_I[i]
+ my_data$K_hat[i]=(1-tao)*(my_data$L_hat[i-1]+my_data$w_hat[i-1]-(1+psi)*my_data$R_hat[i-1])+tao*my_data$I_hat_lag1[i]
+   
     
-  
-   
-   
-
-
-  
-  my_data$r_k_star[i]=-(my_data$K_hat[i]- my_data$L_hat[i])+my_data$w_hat[i]
+  my_data$r_k_star[i]=my_data$R_hat[i]
     
     }
 ```
@@ -467,13 +469,6 @@ data_list <- list(
   epsilon_G = my_data$epsilon_G[1:T],
   epsilon_R = my_data$epsilon_R[1:T],
   epsilon_W = my_data$epsilon_W[1:T],
-  expected_C_hat_next = my_data$C_hat_plus_1[1:T],
-  expected_I_hat_next = my_data$I_hat_plus_1[1:T],
-  expected_Y_hat_next = my_data$Y_hat_plus_1[1:T],
-  expected_Pi_hat_next = my_data$Pi_hat_plus_1[1:T],
-  expected_R_hat_next = my_data$R_hat_plus_1[1:T],
-  expected_L_hat_next = my_data$L_hat_plus_1[1:T],
-  expected_W_hat_next = my_data$w_hat_plus_1[1:T],
   r_k_star = my_data$r_k_star[1:T],
   inflationtaget=my_data$inflationtarget[1:T],
   potential_gdp=my_data$potential_gdp[1:T],
@@ -540,7 +535,7 @@ data {
 parameters {
  
     real<lower=0.99, upper=1> Beta; // Given mean is 0.025, the range would be truncated because Beta cannot be negative
-  real<lower=0.019, upper=0.035> tao;
+  real<lower=0.025, upper=0.035> tao;
   real<lower=0, upper=0.8> alpha; // Mean=0.3, so range is 0.3±0.5, lower bound truncated at 0
   real<lower=0, upper=1> psi; // Mean=1/.169, requires calculating the actual value and then ±0.5, truncating bounds as necessary
   real<lower=0.3, upper=0.5> gamma_pi; // Mean=0.469, so range is 0.469±0.5, upper bound truncated at 1
@@ -562,7 +557,7 @@ parameters {
   real<lower=0.15, upper=0.25> Invy;
   real<lower=0.3, upper=0.9> Cy; // Mean=0.6, so range is 0.6±0.5, upper bound truncated at 1
  
-  real<lower=0, upper=1> gy; // Computed from 1-Cy-Invy, so range needs to be calculated based on those values
+  real<lower=0.16, upper=0.4> gy; // Computed from 1-Cy-Invy, so range needs to be calculated based on those values
   real<lower=0.3, upper=0.84> r_pi;
   real<lower=0, upper=0.599> r_y;
   real<lower=0, upper=0.659> Ry_delta;
