@@ -291,7 +291,7 @@ for (j in 1:ncol(last_9_vars)) {
             }
 
             # Calculate the t+1 value for this specific element by adding epsilon
-            t_plus_1_estimates[i, j] <-.58* weighted_value + epsilon
+            t_plus_1_estimates[i, j] <- weighted_value + epsilon
         }
     }
 }
@@ -788,6 +788,15 @@ model {
 
 ```
 
+
+```{r}
+fit <- sampling(model, data = data_list, algorithm = "NUTS", iter = 2000, chains = 4)
+
+```
+```{r}
+fit <- sampling(model, data = data_list, algorithm = "Fixed_param", iter = 1, chains = 1)
+
+```
 
 
 ```{r}
