@@ -53,7 +53,7 @@ sigma_ei=0.085
 sigma_lamada_p=.16
 sigma_lamda_w=.289
 sigma_e_q=.604
-sigma_e_i <- 3.52
+sigma_e_i <- 0.085
 sigma_e_c<- 0.336
 alpha_k <- 0.3 
 sigma_e_p <- 0.16 # Standard deviation for price markup shocks
@@ -153,12 +153,13 @@ personalconsumption=read_excel("personalconsumption.xlsx")
 realGDP=read_excel("realgdp.xlsx")
 compensation =read_excel("compensation .xlsx")
 GDPPOT <- read_excel("GDPPOT.xls")
+hours2xls <- read_excel("hours3xls.xls")
 
 
 ```
 ```{r}
 # List of your data frames
-df_list <- list(averageweeklyproductionhours, employment, gdpdeflator, population, investment, fedfunds, personalconsumption, realGDP,compensation,GDPPOT)
+df_list <- list(averageweeklyproductionhours, employment, gdpdeflator, population, investment, fedfunds, personalconsumption, realGDP,compensation,GDPPOT,hours2xls )
 
 # Function to convert the first column to Date and the second to numeric
 convert_columns <- function(df) {
@@ -171,7 +172,7 @@ convert_columns <- function(df) {
 converted_df_list <- lapply(df_list, convert_columns)
 
 # If you want to replace the original data frames in your environment with the converted ones:
-names(converted_df_list) <- c("averageweeklyproductionhours", "employment", "gdpdeflator", "population", "investment", "fedfunds", "personalconsumption", "realGDP","compensation","GDPPOT")
+names(converted_df_list) <- c("averageweeklyproductionhours", "employment", "gdpdeflator", "population", "investment", "fedfunds", "personalconsumption", "realGDP","compensation","GDPPOT","hours")
 list2env(converted_df_list, envir = .GlobalEnv)
 
 ```
@@ -227,7 +228,7 @@ final <- cleaned_df %>%
     Consumption_growth = c(NA, 100 * diff(log((PCE / `gdp deflator`) / population))),
     Investment_growth = c(NA, 100 * diff(log((fpi / `gdp deflator`) / population))),
     Wage_growth = c(NA, 100 * diff(log(compensation / `gdp deflator`))),
-    Hours = log((`weekly_production_hours` * employment / 100) / population) * 100,
+    Hours = ((1+hours)^1/4)+1,
     Inflation = c(NA, 100 * diff(log(`gdp deflator`))),
     Ffr = FEDFUNDS / 4
   )
@@ -403,8 +404,9 @@ for   (i in 2:nrow(my_data)){
         eta_g<- rnorm(1, mean = 0, sd = sigma_e_q)
         rho_g<- rbeta(1, alpha_beta, beta_beta)
        my_data$epsilon_G[i] <- rho_g * my_data$epsilon_G[i-1] + eta_g
-       epsilon_W<- rnorm(1, mean = 0, sd = sigma_e_w)
-       my_data$epsilon_W[i]=epsilon_W
+       eta_l<- rnorm(1, mean = 0, sd = sigma_e_L)
+        rho_l<- rbeta(1, alpha_beta, beta_beta)
+       my_data$epsilon_L[i] <- rho_l * my_data$epsilon_G[i-1] + eta_l
        epsilon_R<- rnorm(1, mean = 0, sd = sigma_er)
        my_data$epsilon_R[i]=epsilon_R
      # Update pi_bar using the running average of Pi_hat
@@ -431,7 +433,7 @@ my_data$Q_hat[i] = -(my_data$R_hat[i] - my_data$Pi_hat_plus_1[i]) +
 
 
  
- my_data$K_hat[i]=(1-tao)*(my_data$L_hat[i-1]+my_data$w_hat[i-1]-(1+psi)*my_data$R_hat[i-1])+tao*my_data$I_hat_lag1[i]
+ my_data$K_hat[i]=(1-tao)*my_data$K_hat[i-1]+tao*my_data$I_hat[i-1]+tao*my_data$epsilon_I[i-1]
    
     
   my_data$r_k_star[i]=my_data$R_hat[i]
@@ -445,6 +447,9 @@ library(dplyr)
 
 # Assuming 'final' is your data frame
 my_data <- my_data %>% mutate(inflationtarget = 0.35)
+```
+```{r}
+
 ```
 
 
@@ -558,12 +563,12 @@ parameters {
  
  
     
-  real<lower=0.3, upper=0.7> lambda_w;
-  real<lower=0.9, upper=1> zeta_ps;
+  real<lower=0.35, upper=0.75> lambda_w;
+  real<lower=0.85, upper=1> zeta_ps;
   real<lower=0.5, upper=1> zeta_ws;
-  real<lower=1.9, upper=2.7> sigma_L;
-  real<lower=0.853, upper=1.853> sigma_c;
-  real<lower=0.1, upper=0.6> h;
+  real<lower=1.8, upper=2.4> sigma_L;
+  real<lower=0.853, upper=1.3> sigma_c;
+  real<lower=0.35, upper=0.7> h;
   real<lower=0.908, upper=1.908> phi;
   real<lower=0.9, upper=1.25> phi_uppercase; // Mean=1/6.771, requires calculating the actual value and then ±0.5, truncating bounds as necessary
   real<lower=0, upper=1> rbar_k; // Depends on Beta, the range might need to be dynamically calculated
@@ -572,7 +577,7 @@ parameters {
   real<lower=0.15, upper=0.25> Invy;
   real<lower=0.3, upper=0.9> Cy; // Mean=0.6, so range is 0.6±0.5, upper bound truncated at 1
  
-  real<lower=0.16, upper=0.4> gy; // Computed from 1-Cy-Invy, so range needs to be calculated based on those values
+  real<lower=0.13, upper=0.29> gy; // Computed from 1-Cy-Invy, so range needs to be calculated based on those values
   real<lower=0.3, upper=0.84> r_pi;
   real<lower=0, upper=0.599> r_y;
   real<lower=0, upper=0.659> Ry_delta;
@@ -580,9 +585,9 @@ parameters {
   real<lower=0.7, upper=1> rho_el;
   real<lower=0.7, upper=1> rho_ea;
   real<lower=0.7, upper=1> rho_eb;
-  real<lower=0.7, upper=1> rho_G;
+  real<lower=0.65, upper=1> rho_G;
   real<lower=0.7, upper=1> rho_pi;
-  real<lower=0.7, upper=1> rh_i;
+  real<lower=0.65, upper=1> rh_i;
   
   
  // real<lower=0> rho_er; // Since rho_er=0, it is set as the lower bound
@@ -666,7 +671,7 @@ investment_growth_shocked[t] = (1 / (1 + Beta)) * investment_growth_shocked[t-1]
                                (Beta / (1 + Beta)) * expected_I_hat_next[t] +
                                ((1/phi_uppercase)/(1+Beta)) * q_shocked[t] + epsilon_I[t];
 
-kapital_shocked[t] = (1 - tao) * kapital_shocked[t - 1] + tao * investment_growth_shocked[t] + tao * epsilon_I[t];
+kapital_shocked[t] =(1-tao)*kapital_shocked[t-1]+tao*investment_growth_shocked[t-1]+tao*epsilon_I[t-1] ;
 
 hours_shocked[t] = -wage_growth_shocked[t] + (1 + psi) * ffr_shocked[t] + kapital_shocked[t-1];
 
@@ -679,14 +684,29 @@ inflation_shocked[t] = (Beta / (1 + Beta * gamma_pi)) * (expected_Pi_hat_next[t]
                        (alpha * ffr_shocked[t] + ((1 - alpha) * wage_growth_shocked[t]) - epsilon_pitwo[t] - (1 - alpha) * gamma_w) +
                        epsilon_PI[t] + inflationtarget_shocked[t];
 
-wage_growth_shocked[t] = (Beta / (1 + Beta)) * expected_W_hat_next[t] +
-                         (1 / (1 + Beta)) * wage_growth_shocked[t-1] +
-                         (Beta / (1 + Beta)) * (inflationtarget_shocked[t-1] - inflation_shocked[t]) -
-                         ((1 + (Beta * gamma_w)) / (1 + Beta)) * (inflationtarget_shocked[t-1] - inflation_shocked[t]) -
-                         (1 / (1 + Beta)) * ((1 - (Beta * zeta_ws) * (1 - zeta_ws)) / (1 + ((1 - lambda_w) * sigma_L) / lambda_w) * zeta_ws) *
-                         (wage_growth_shocked[t-1] - (sigma_L * hours_shocked[t]) -
-                          (1 / (1 - h)) * (consumption_growth_shocked[t] - (h * consumption_growth_shocked[t-1]))) +
-                         epsilon_L[t] + epsilon_W[t];
+ // Part 1: Expected future wage growth
+    real part1_wage = (Beta / (1 + Beta)) * expected_W_hat_next[t];
+
+    // Part 2: Lagged wage growth (previous period)
+    real part2_wage = (1 / (1 + Beta)) * wage_growth_shocked[t-1];
+
+    // Part 3: Impact of inflation differences
+    real part3_inflation = (Beta / (1 + Beta)) * (inflationtarget_shocked[t-1] - inflation_shocked[t]);
+
+    // Part 4: Adjustment for combined inflation and wage-related term
+    real part4_inflation_wage = ((1 + (Beta * gamma_w)) / (1 + Beta)) * (inflationtarget_shocked[t-1] - inflation_shocked[t]);
+
+    // Part 5: Complex adjustment factor
+    real adjustment_factor = (1 / (1 + Beta)) * ((1 - (Beta * zeta_ws) * (1 - zeta_ws)) / (1 + ((1 - lambda_w) * sigma_L) / lambda_w) * zeta_ws);
+
+    // Part 6: Complex term involving wage growth, hours worked, and consumption growth
+    real complex_term = adjustment_factor *  (wage_growth_shocked[t-1] - (sigma_L * hours_shocked[t]) -  (1 / (1 - h)) * (consumption_growth_shocked[t] - (h * consumption_growth_shocked[t-1]+epsilon_L[t])));
+
+    // Error terms
+    real error_term = epsilon_W[t];
+
+    // Final wage growth shocked equation
+    wage_growth_shocked[t] = part1_wage + part2_wage + part3_inflation - part4_inflation_wage - complex_term + error_term;
 
    
   }
@@ -728,11 +748,11 @@ model {
   
   // Set priors for the means using the estimated values
   mu_Pi_hat ~ normal(0.7511204, sigma_Pi_hat);
-  mu_C_hat ~ normal(0.5415428, sigma_C_hat);
-  mu_I_hat ~ normal(0.4016593, sigma_I_hat);
-  mu_R_hat ~ normal(1.596101, sigma_R_hat);
-  mu_W_hat ~ normal(0.3624955, sigma_W_hat);
-  mu_L_hat ~ normal(-154.7743, sigma_L_hat);
+  mu_C_hat ~ normal(0.5452631, sigma_C_hat);
+  mu_I_hat ~ normal( 0.4092956, sigma_I_hat);
+  mu_R_hat ~ normal( 1.598727, sigma_R_hat);
+  mu_W_hat ~ normal(0.372847, sigma_W_hat);
+  mu_L_hat ~ normal( 1.585092, sigma_L_hat);
 
   // Stochastic processes for expected terms
   expected_Pi_hat_next[1] ~ normal(mu_Pi_hat, sigma_Pi_hat);
@@ -742,7 +762,7 @@ model {
   expected_W_hat_next[1] ~ normal(mu_W_hat, sigma_W_hat);
   expected_L_hat_next[1] ~ normal(mu_L_hat, sigma_L_hat);
 
-  for (t in 2:T) {
+  for (t in 3:T) {
     expected_Pi_hat_next[t] ~ normal(expected_Pi_hat_next[t-1], sigma_Pi_hat);
     expected_C_hat_next[t] ~ normal(expected_C_hat_next[t-1], sigma_C_hat);
     expected_I_hat_next[t] ~ normal(expected_I_hat_next[t-1], sigma_I_hat);
@@ -772,10 +792,10 @@ model {
     
     investment_growth_vector[t] ~ normal((1 / (1 + Beta)) * investment_growth_vector[t-1] +(Beta / (1 + Beta)) *expected_I_hat_next[t]+((1/phi_uppercase)/(1+Beta))*q[t]+epsilon_I[t], 1.856414);
       
-   kapital[t] ~ normal((1 - tao) * kapital[t - 1] + tao * investment_growth_vector[t] + tao *epsilon_I[t],17.22238 );
+   kapital[t] ~ normal((1-tao)*kapital[t-1]+tao*investment_growth_vector[t-1]+tao*epsilon_I[t-1],0.2299672 );
 
     
-   hours_vector[t]~ normal(-wage_growth_vector[t] + (1+psi)*ffr_vector[t]+ kapital[t-1],2.57808);
+   hours_vector[t]~ normal(-wage_growth_vector[t] + (1+psi)*ffr_vector[t]+ kapital[t-1],0.7029192);
    
    output_growth_vector[t] ~ normal((1 - (tao*Ky) - gy) * consumption_growth_vector[t] + (tao*Ky) * investment_growth_vector[t] + gy *epsilon_G[t],0.7320224);
       
@@ -834,7 +854,7 @@ model {
 
 
 ```{r}
-fit <- sampling(model, data = data_list, algorithm = "NUTS", iter = 2000, chains = 4)
+fit <- sampling(model, data = data_list, algorithm = "NUTS", iter = 2000, chains = 2)
 
 ```
 ```{r}
@@ -959,22 +979,30 @@ grid.arrange(grobs = plot_list, ncol = 2)
 
 ```
 ```{r}
-
-
 # Create a function to plot a variable with its credible intervals and dynamic y-axis limits
 plot_shocked_variable <- function(original, mean_shocked, lower_ci, upper_ci, variable_name) {
-  # Calculate dynamic y-axis limits
-  ymin <- min(c(original, mean_shocked), na.rm = TRUE) - 5
-  ymax <- max(c(original, mean_shocked), na.rm = TRUE) + 5
+  # Ensure all vectors have the same length
+  min_length <- min(length(original), length(mean_shocked), length(lower_ci), length(upper_ci))
   
+  original <- original[1:min_length]
+  mean_shocked <- mean_shocked[1:min_length]
+  lower_ci <- lower_ci[1:min_length]
+  upper_ci <- upper_ci[1:min_length]
+  
+  # Calculate dynamic y-axis limits based on original and mean shocked values
+  ymin <- min(c(original, mean_shocked), na.rm = TRUE) - 1
+  ymax <- max(c(original, mean_shocked), na.rm = TRUE) + 1
+  
+  # Create data frame for plotting
   data <- data.frame(
-    Time = 1:length(original),
+    Time = 1:min_length,
     Original = original,
     Mean_Shocked = mean_shocked,
     Lower_CI = lower_ci,
     Upper_C_I = upper_ci
   )
   
+  # Create the plot
   ggplot(data, aes(x = Time)) +
     geom_line(aes(y = Original), color = "blue", linetype = "dashed") +
     geom_line(aes(y = Mean_Shocked), color = "red") +
@@ -992,7 +1020,7 @@ plot_shocked_variable <- function(original, mean_shocked, lower_ci, upper_ci, va
     ylim(ymin, ymax)  # Set dynamic y-axis limits
 }
 
-# Generate the list of plots with dynamic y-axis limits
+# Generate the list of plots with dynamic y-axis limits and length consistency
 plot_list <- list(
   plot_shocked_variable(data_list$output_growth_vector, mean_output_growth_shocked, lower_credible_interval_output, upper_credible_interval_output, "Output Growth"),
   plot_shocked_variable(data_list$consumption_growth_vector, mean_consumption_growth_shocked, lower_credible_interval_consumption, upper_credible_interval_consumption, "Consumption Growth"),
@@ -1006,13 +1034,14 @@ plot_list <- list(
 # Arrange the plots in a grid with 2 columns, and adjust the spacing
 grid.arrange(grobs = plot_list, ncol = 2, padding = unit(1, "line"))
 
+
 ```
 
 ```{r}
 
 
 # Extract parameters
-params <- extract(fit)
+params <- as.array(fit)
 
 
 # List of variable names corresponding to the state transition matrix
@@ -1029,17 +1058,21 @@ variable_names <- c(
   "output_growth_shocked_output", "consumption_growth_shocked_output", "investment_growth_shocked_output", "wage_growth_shocked_output",
   "hours_shocked_output", "inflation_shocked_output", "ffr_shocked_output", "lp__"
 )
-# Construct the state transition matrix A
-# Adjust the dimensions and values according to your model
-A <- matrix(c(
-  params$Beta[1], params$tao[1], params$alpha[1], params$psi[1], params$gamma_pi[1], params$gamma_w[1],
-  params$lambda_w[1], params$zeta_ps[1], params$zeta_ws[1], params$sigma_L[1], params$sigma_c[1], params$h[1],
-  params$phi[1], params$phi_uppercase[1], params$rbar_k[1], params$Ky[1], params$sigma_eta_C[1], params$Invy[1],
-  params$Cy[1], params$gy[1], params$r_pi[1], params$r_y[1], params$Ry_delta[1], params$rho[1],
-  params$rho_el[1], params$rho_ea[1], params$rho_eb[1], params$rho_G[1], params$rho_pi[1], params$rh_i[1],
-  params$rho_lamdaw[1], params$rho_q[1], params$rho_lamda_p[1], params$rho_L[1], params$output_growth_shocked[1], params$consumption_growth_shocked[1]
-), nrow = 6, byrow = TRUE)  # Adjust the size based on your model's needs
 
+# Construct the state transition matrix A as you did earlier (without parameters that don't exist)
+A <- matrix(c(
+  params[1, 1, "Beta"], params[1, 1, "tao"], params[1, 1, "alpha"], params[1, 1, "psi"], 
+  params[1, 1, "gamma_pi"], params[1, 1, "gamma_w"],
+  params[1, 1, "lambda_w"], params[1, 1, "zeta_ps"], params[1, 1, "zeta_ws"], 
+  params[1, 1, "sigma_L"], params[1, 1, "sigma_c"], params[1, 1, "h"],
+  params[1, 1, "phi"], params[1, 1, "phi_uppercase"], params[1, 1, "rbar_k"], 
+  params[1, 1, "Ky"], params[1, 1, "sigma_eta_C"], params[1, 1, "Invy"],
+  params[1, 1, "Cy"], params[1, 1, "gy"], params[1, 1, "r_pi"], params[1, 1, "r_y"], 
+  params[1, 1, "Ry_delta"], params[1, 1, "rho"], params[1, 1, "rho_el"], params[1, 1, "rho_ea"], 
+  params[1, 1, "rho_eb"], params[1, 1, "rho_G"], params[1, 1, "rho_pi"], params[1, 1, "rh_i"],
+  params[1, 1, "rho_lamdaw"], params[1, 1, "rho_q"], params[1, 1, "rho_lamda_p"], 
+  params[1, 1, "rho_L"]
+), nrow = 6, byrow = TRUE)
 # Ensure A is square by matching the number of rows and columns
 if (nrow(A) != ncol(A)) {
   stop("The state transition matrix A is not square.")
@@ -1087,6 +1120,75 @@ df_summary_stats$parameter <- rownames(df_summary_stats)
 print(df_summary_stats)
 
 ```
+```{r}
+library(dplyr)
+library(tidyr)
+
+# Step 1: Select only the `mean` and `parameter` columns (explicitly use dplyr::select)
+df_cleaned <- df_summary_stats %>%
+  dplyr::select(mean, parameter)
+
+# Step 2: Separate the `parameter` column into two parts: the name and the number inside the brackets
+df_separated <- df_cleaned %>%
+  separate(parameter, into = c("param_name", "number"), sep = "\\[|\\]", convert = TRUE)
+
+# Step 3: Filter out rows without a number and remove duplicates
+df_filtered <- df_separated %>%
+  filter(!is.na(number)) %>%    # Remove rows where 'number' is NA
+  distinct()                    # Remove duplicate rows
+
+# Step 4: Pivot the data frame to make the `param_name` the columns and the `number` the rows
+df_final <- df_filtered %>%
+  pivot_wider(names_from = param_name, values_from = mean)
+
+# Step 5: Replace any NA values in the final data frame with 1 across all columns
+df_final <- df_final %>%
+  mutate(across(everything(), ~ replace_na(.x, 1)))
+
+# Print the final resulting data frame
+print(df_final)
+
+
+```
+```{r}
+# Assuming df_final contains columns for all the necessary variables
+# Beta, expected_W_hat_next, wage_growth_shocked, inflationtarget_shocked, inflation_shocked,
+# gamma_w, zeta_ws, lambda_w, sigma_L, hours_shocked, consumption_growth_shocked, h, epsilon_L, epsilon_W
+
+df_final <- df_final %>%
+  mutate(
+    # Part 1: Expected future wage growth
+    part1_wage = (Beta / (1 + Beta)) * expected_W_hat_next,
+    
+    # Part 2: Lagged wage growth (previous period)
+    part2_wage = (1 / (1 + Beta)) * lag(wage_growth_shocked_final, 1),
+    
+    # Part 3: Impact of inflation differences
+    part3_inflation = (Beta / (1 + Beta)) * (lag(inflationtarget_shocked, 1) - inflation_shocked),
+    
+    # Part 4: Adjustment for combined inflation and wage-related term
+    part4_inflation_wage = ((1 + (Beta * gamma_w)) / (1 + Beta)) * (lag(inflationtarget_shocked, 1) - inflation_shocked),
+    
+    # Part 5: Complex adjustment factor
+    adjustment_factor = (1 / (1 + Beta)) * ((1 - (Beta * zeta_ws) * (1 - zeta_ws)) /
+                        (1 + ((1 - lambda_w) * sigma_L) / lambda_w) * zeta_ws),
+    
+    # Part 6: Complex term involving wage growth, hours worked, and consumption growth
+    complex_term = adjustment_factor * (lag(wage_growth_shocked, 1) - (sigma_L * hours_shocked) -
+                    (1 / (1 - h)) * (consumption_growth_shocked - (h * lag(consumption_growth_shocked, 1)))),
+    
+    # Error terms
+    #error_term = epsilon_L + epsilon_W,
+    
+    # Final wage growth shocked equation
+    wage_growth_shocked_final = part1_wage + part2_wage + part3_inflation - part4_inflation_wage - complex_term #+ error_term
+  )
+  
+
+```
+
+
+
 ```{r}
 # Assuming the parameters from your model are in the samples object
 beta <- mean(samples$beta)
@@ -1217,48 +1319,53 @@ lines(ffr_shock_finite, col = "red")
 
 ```{r}
 
-options(scipen = 999)
-# Ensure ggplot2 is loaded
-library(ggplot2)
-setwd("C:/Users/gealy/OneDrive/Documents/New folder (2)")
-getwd()
-# Ensure params are extracted with structure maintained
-params <- extract(fit, permuted=FALSE)
- param_names <- dimnames(params)[[3]]  # Extract parameter names
-color_scheme_set("brightblue")
+       library(ggplot2)
+library(rstan)
 
-# Loop through each parameter and generate plots
+# Set working directory
+setwd("C:/Users/gealy/OneDrive/Documents/New folder (2)")
+
+# Extract parameters in array form using as.array()
+params <- as.array(fit)
+
+# List of specific parameters to plot
+selected_params <- c("Beta", "tao", "alpha", "psi", "gamma_pi", "gamma_w",
+                     "lambda_w", "zeta_ps", "zeta_ws", "sigma_L", "sigma_c", 
+                     "h", "phi", "phi_uppercase", "rbar_k", "Ky", "sigma_eta_C",
+                     "Invy", "Cy", "gy", "r_pi", "r_y", "Ry_delta", "rho", 
+                     "rho_el", "rho_ea", "rho_eb", "rho_G", "rho_pi", "rh_i", 
+                     "rho_lamdaw", "rho_q", "rho_lamda_p", "rho_L")
+
+# Get parameter names
+param_names <- dimnames(params)[[3]]
+
+# Loop through each parameter and generate plots only if it's in the selected_params list
 for (param_name in param_names) {
-    if (param_name != "lp__") {  # Skip the log probability parameter
-        param_data <- as.array(params[,, param_name])
-        if (is.array(param_data)) {
-            # Create a data frame for ggplot
-            param_df <- data.frame(
-                Iteration = rep(1:nrow(param_data), ncol(param_data)),
-                Value = as.vector(t(param_data)),
-                Chain = rep(1:ncol(param_data), each = nrow(param_data)),
-                Parameter = param_name  # Include parameter name for clarity
-            )
-            
-            # Generate the plot
-            p <- ggplot(param_df, aes(x = Iteration, y = Value, color = as.factor(Chain))) +
-                geom_line() +
-                labs(title = paste("Trace Plot for", param_name), x = "Iteration", y = param_name) +
-                theme_minimal()
-            
-            # Print the plot to the console or save to file
-            print(p)
-            # Optionally, save the plot to a file
-            ggsave(paste0("Trace_", param_name, ".png"), plot = p, width = 10, height = 8)
-            
-            # Clear the plot if running in a script to save memory
-            dev.off()  # This resets the plotting device
-        } else {
-            cat(param_name, "data could not be converted to an array correctly.\n")
-        }
+    if (param_name %in% selected_params) {
+        param_data <- params[, , param_name]
+        
+        # Create a data frame for ggplot
+        param_df <- data.frame(
+            Iteration = rep(1:dim(param_data)[1], each = dim(param_data)[2]),
+            Value = as.vector(param_data),
+            Chain = rep(1:dim(param_data)[2], each = dim(param_data)[1]),
+            Parameter = param_name
+        )
+        
+        # Generate the plot
+        p <- ggplot(param_df, aes(x = Iteration, y = Value, color = as.factor(Chain))) +
+            geom_line() +
+            labs(title = paste("Trace Plot for", param_name), x = "Iteration", y = param_name) +
+            theme_minimal()
+        
+        # Print the plot
+        print(p)
+        
+        # Optionally, save the plot to a file
+        ggsave(paste0("Trace_", param_name, ".png"), plot = p, width = 10, height = 8)
     }
 }
-
+   
 
 ```
 
@@ -1279,8 +1386,6 @@ beta_data_from_list <- param_data_list[["Beta"]]
 library(actuar)
 library(MASS)
 
-```
-```{r}
 data_list <- list(
   output_growth_vector = final$Output_growth,
   consumption_growth_vector = final$Consumption_growth,
@@ -1293,15 +1398,8 @@ data_list <- list(
   q = my_data$Q_hat
 )
 
-```
 
 
-```{r}
-library(MASS)  # Ensure MASS is loaded for fitdistr
-```
-
-
-```{r}
 results <- list()  # Initialize results storage
 
 # Loop through each data vector in the list
