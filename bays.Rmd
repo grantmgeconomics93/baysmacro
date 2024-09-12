@@ -678,35 +678,28 @@ hours_shocked[t] = -wage_growth_shocked[t] + (1 + psi) * ffr_shocked[t] + kapita
 output_growth_shocked[t] = (1 - (tao * Ky) - gy) * consumption_growth_shocked[t] +
                            (tao * Ky) * investment_growth_shocked[t] + gy * epsilon_G[t];
 
-inflation_shocked[t] = (Beta / (1 + Beta * gamma_pi)) * (expected_Pi_hat_next[t] - inflationtarget_shocked[t]) +
-                       (gamma_pi / (1 + Beta * gamma_pi)) * (inflation_shocked[t-1] - inflationtarget_shocked[t]) +
-                       (1 / (1 - Beta * gamma_pi)) * (((1 - Beta * zeta_ps) * (1 - zeta_ps)) / zeta_ps) *
-                       (alpha * ffr_shocked[t] + ((1 - alpha) * wage_growth_shocked[t]) - epsilon_pitwo[t] - (1 - alpha) * gamma_w) +
-                       epsilon_PI[t] + inflationtarget_shocked[t];
+// Breaking down the equation into smaller parts
+real part1_inflation = (Beta / (1 + Beta * gamma_pi)) * (expected_Pi_hat_next[t] - inflationtarget_shocked[t]);
+real part2_inflation = (gamma_pi / (1 + Beta * gamma_pi)) * (inflation_shocked[t-1] - inflationtarget_shocked[t]);
+real part3_adjustment = (1 / (1 - Beta * gamma_pi)) * (((1 - Beta * zeta_ps) * (1 - zeta_ps)) / zeta_ps);
+real part4_inflation = alpha * ffr_shocked[t] + (1 - alpha) * wage_growth_shocked[t] - epsilon_pitwo[t] - (1 - alpha) * gamma_w;
+real part5_inflation = epsilon_PI[t] + inflationtarget_shocked[t];
 
- // Part 1: Expected future wage growth
-    real part1_wage = (Beta / (1 + Beta)) * expected_W_hat_next[t];
+// Final inflation shocked equation
+inflation_shocked[t] = part1_inflation + part2_inflation + part3_adjustment * part4_inflation + part5_inflation;
 
-    // Part 2: Lagged wage growth (previous period)
-    real part2_wage = (1 / (1 + Beta)) * wage_growth_shocked[t-1];
 
-    // Part 3: Impact of inflation differences
-    real part3_inflation = (Beta / (1 + Beta)) * (inflationtarget_shocked[t-1] - inflation_shocked[t]);
+real part1_wage= (Beta / (1 + Beta)) *expected_W_hat_next[t] ;
+real part2_wage= (1 / (1 + Beta)) *  wage_growth_shocked[t-1];
+real part3_inflation = (Beta / (1 + Beta)) * (inflationtarget_shocked[t-1] -  inflation_shocked[t]);
+real  part4_inflation_wage = ((1 + (Beta * gamma_w)) / (1 + Beta)) * (inflationtarget_shocked[t-1] - inflation_shocked[t]);
+real part5w = (gamma_w / (1 + Beta)) * (inflationtarget_shocked[t-1] -inflation_shocked[t]);
+real adjustment_factor = (1/(1+Beta))*((1 - (Beta * zeta_ws) * (1 - zeta_ws)) / (1 + ((1 - lambda_w) * sigma_L) / lambda_w) * zeta_ws);
+real complex_part = adjustment_factor * (wage_growth_shocked[t-1] - (sigma_L * hours_shocked[t]) - (1 / (1 - h)) * (consumption_growth_shocked[t] - (h * consumption_growth_shocked[t-1])) + epsilon_L[t])+epsilon_W[t]; 
+wage_growth_shocked[t] = part1_wage + part2_wage + part3_inflation - part4_inflation_wage - complex_part ;
 
-    // Part 4: Adjustment for combined inflation and wage-related term
-    real part4_inflation_wage = ((1 + (Beta * gamma_w)) / (1 + Beta)) * (inflationtarget_shocked[t-1] - inflation_shocked[t]);
 
-    // Part 5: Complex adjustment factor
-    real adjustment_factor = (1 / (1 + Beta)) * ((1 - (Beta * zeta_ws) * (1 - zeta_ws)) / (1 + ((1 - lambda_w) * sigma_L) / lambda_w) * zeta_ws);
-
-    // Part 6: Complex term involving wage growth, hours worked, and consumption growth
-    real complex_term = adjustment_factor *  (wage_growth_shocked[t-1] - (sigma_L * hours_shocked[t]) -  (1 / (1 - h)) * (consumption_growth_shocked[t] - (h * consumption_growth_shocked[t-1]+epsilon_L[t])));
-
-    // Error terms
-    real error_term = epsilon_W[t];
-
-    // Final wage growth shocked equation
-    wage_growth_shocked[t] = part1_wage + part2_wage + part3_inflation - part4_inflation_wage - complex_term + error_term;
+    
 
    
   }
@@ -854,7 +847,7 @@ model {
 
 
 ```{r}
-fit <- sampling(model, data = data_list, algorithm = "NUTS", iter = 2000, chains = 2)
+fit <- sampling(model, data = data_list, algorithm = "NUTS", iter = 2000, chains = 1, control = list(max_treedepth = 15))
 
 ```
 ```{r}
@@ -867,7 +860,63 @@ fit <- sampling(model, data = data_list, algorithm = "Fixed_param", iter = 1, ch
 fit <- sampling(model, data =data_list , chains = 4, iter = 6000, warmup = 1000)
 
 ```
+```{r}
+ # Load necessary libraries
+library(bayesplot)
+library(gridExtra)
+library(ggplot2)
 
+# Generate trace plots for each parameter at index [2]
+trace1 <- mcmc_trace(fit, pars = "expected_Pi_hat_next[2]") + ggtitle("expected_Pi_hat_next[2]")
+trace2 <- mcmc_trace(fit, pars = "expected_C_hat_next[2]") + ggtitle("expected_C_hat_next[2]")
+trace3 <- mcmc_trace(fit, pars = "expected_I_hat_next[2]") + ggtitle("expected_I_hat_next[2]")
+trace4 <- mcmc_trace(fit, pars = "expected_R_hat_next[2]") + ggtitle("expected_R_hat_next[2]")
+trace5 <- mcmc_trace(fit, pars = "expected_W_hat_next[2]") + ggtitle("expected_W_hat_next[2]")
+trace6 <- mcmc_trace(fit, pars = "expected_L_hat_next[2]") + ggtitle("expected_L_hat_next[2]")
+trace7 <- mcmc_trace(fit, pars = "output_growth_shocked[2]") + ggtitle("output_growth_shocked[2]")
+trace8 <- mcmc_trace(fit, pars = "consumption_growth_shocked[2]") + ggtitle("consumption_growth_shocked[2]")
+trace9 <- mcmc_trace(fit, pars = "investment_growth_shocked[2]") + ggtitle("investment_growth_shocked[2]")
+
+# Arrange plots in a grid with 3 columns
+grid.arrange(trace1, trace2, trace3, 
+             trace4, trace5, trace6, 
+             trace7, trace8, trace9, 
+             ncol = 3)
+
+```
+
+```{r}
+# Load necessary libraries
+library(bayesplot)
+library(gridExtra)
+library(ggplot2)
+
+# Generate trace plots for each parameter at index [2]
+trace1 <- mcmc_trace(fit, pars = "expected_Pi_hat_next[2]") + ggtitle("expected_Pi_hat_next[2]") + theme(plot.title = element_text(size = 10))
+trace2 <- mcmc_trace(fit, pars = "expected_C_hat_next[2]") + ggtitle("expected_C_hat_next[2]") + theme(plot.title = element_text(size = 10))
+trace3 <- mcmc_trace(fit, pars = "expected_I_hat_next[2]") + ggtitle("expected_I_hat_next[2]") + theme(plot.title = element_text(size = 10))
+trace4 <- mcmc_trace(fit, pars = "expected_R_hat_next[2]") + ggtitle("expected_R_hat_next[2]") + theme(plot.title = element_text(size = 10))
+trace5 <- mcmc_trace(fit, pars = "expected_W_hat_next[2]") + ggtitle("expected_W_hat_next[2]") + theme(plot.title = element_text(size = 10))
+trace6 <- mcmc_trace(fit, pars = "expected_L_hat_next[2]") + ggtitle("expected_L_hat_next[2]") + theme(plot.title = element_text(size = 10))
+trace7 <- mcmc_trace(fit, pars = "output_growth_shocked[2]") + ggtitle("output_growth_shocked[2]") + theme(plot.title = element_text(size = 10))
+trace8 <- mcmc_trace(fit, pars = "consumption_growth_shocked[2]") + ggtitle("consumption_growth_shocked[2]") + theme(plot.title = element_text(size = 10))
+trace9 <- mcmc_trace(fit, pars = "investment_growth_shocked[2]") + ggtitle("investment_growth_shocked[2]") + theme(plot.title = element_text(size = 10))
+trace10 <- mcmc_trace(fit, pars = "wage_growth_shocked[2]") + ggtitle("wage_growth_shocked[2]") + theme(plot.title = element_text(size = 10))
+trace11 <- mcmc_trace(fit, pars = "hours_shocked[2]") + ggtitle("hours_shocked[2]") + theme(plot.title = element_text(size = 10))
+trace12 <- mcmc_trace(fit, pars = "inflation_shocked[2]") + ggtitle("inflation_shocked[2]") + theme(plot.title = element_text(size = 10))
+trace13 <- mcmc_trace(fit, pars = "ffr_shocked[2]") + ggtitle("ffr_shocked[2]") + theme(plot.title = element_text(size = 10))
+trace14 <- mcmc_trace(fit, pars = "kapital_shocked[2]") + ggtitle("kapital_shocked[2]") + theme(plot.title = element_text(size = 10))
+trace15 <- mcmc_trace(fit, pars = "q_shocked[2]") + ggtitle("q_shocked[2]") + theme(plot.title = element_text(size = 10))
+trace16 <- mcmc_trace(fit, pars = "r_k_star_shocked[2]") + ggtitle("r_k_star_shocked[2]") + theme(plot.title = element_text(size = 10))
+trace17 <- mcmc_trace(fit, pars = "inflationtarget_shocked[2]") + ggtitle("inflationtarget_shocked[2]") + theme(plot.title = element_text(size = 10))
+trace18 <- mcmc_trace(fit, pars = "potential_gdp_shocked[2]") + ggtitle("potential_gdp_shocked[2]") + theme(plot.title = element_text(size = 10))
+
+# Arrange the first set of plots in a grid with 5 columns
+grid.arrange(trace1, trace2, trace3, trace4, trace5, trace6, trace7, trace8, trace9, trace10, 
+             trace11, trace12, trace13, trace14, trace15, trace16, trace17, trace18, 
+             ncol = 5)  # Adjust the number of columns (5) for better spacing
+
+```
 
 ```{r}
 # Extract samples from the fitted model
