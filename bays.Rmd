@@ -506,13 +506,6 @@ library(V8)
 ```{stan output.var=model}
 data {
   int<lower=1> T; // Number of time points
-  vector[T] epsilon_C;
-  vector[T] epsilon_Q;
-  vector[T] epsilon_I;
-  vector[T] epsilon_PI;
-   vector[T] epsilon_G;
-   vector[T] epsilon_R;
-   vector[T] epsilon_W;
   real<lower=0> sigma_Pi_hat;   // SD for inflation_vector
   real<lower=0> sigma_C_hat;    // SD for consumption_growth_vector
   real<lower=0> sigma_I_hat;    // SD for investment_growth_vector
@@ -523,8 +516,8 @@ data {
   vector[T] output_growth_vector;
   vector[T]  potential_gdp;
   vector[T] investment_growth_vector;
-  vector[T] wage_growth_vector;
-  vector[T] hours_vector;
+  
+  
   vector[T] inflation_vector;
   vector[T] ffr_vector;
   vector[T] kapital;
@@ -543,7 +536,7 @@ parameters {
   vector[T] expected_C_hat_next;
   vector[T] expected_I_hat_next;
   vector[T] expected_R_hat_next;
-  vector[T] expected_W_hat_next;
+
   vector[T] expected_L_hat_next;
 
   // Define the initial means for the expected terms
@@ -553,7 +546,14 @@ parameters {
   real mu_R_hat;   // Initial mean for expected_R_hat_next
   real mu_W_hat;   // Initial mean for expected_W_hat_next
   real mu_L_hat;   // Initial mean for expected_L_hat_next
- 
+ vector[T] epsilon_C;
+  vector[T] epsilon_I;
+  vector[T] epsilon_R;
+  
+  vector[T] epsilon_PI;
+  vector[T] epsilon_Q;
+  vector[T] epsilon_G;
+  
     real<lower=0.99, upper=1> Beta; // Given mean is 0.025, the range would be truncated because Beta cannot be negative
   real<lower=0.025, upper=0.035> tao;
   real<lower=0, upper=0.8> alpha; // Mean=0.3, so range is 0.3±0.5, lower bound truncated at 0
@@ -567,15 +567,17 @@ parameters {
   real<lower=0.85, upper=1> zeta_ps;
   real<lower=0.5, upper=1> zeta_ws;
   real<lower=1.8, upper=2.4> sigma_L;
-  real<lower=0.853, upper=1.3> sigma_c;
-  real<lower=0.35, upper=0.7> h;
-  real<lower=0.908, upper=1.908> phi;
+  real<lower=0.853, upper=1.87> sigma_c;
+  real<lower=0, upper=1> h;
+  real<lower= 2.5, upper=5.5> phi;
   real<lower=0.9, upper=1.25> phi_uppercase; // Mean=1/6.771, requires calculating the actual value and then ±0.5, truncating bounds as necessary
   real<lower=0, upper=1> rbar_k; // Depends on Beta, the range might need to be dynamically calculated
   real<lower=8.3, upper=9.3> Ky;
   real<lower=0, upper=0.1116> sigma_eta_C;  
   real<lower=0.15, upper=0.25> Invy;
   real<lower=0.3, upper=0.9> Cy; // Mean=0.6, so range is 0.6±0.5, upper bound truncated at 1
+    // Declare epsilon parameters to be estimated
+   
  
   real<lower=0.13, upper=0.29> gy; // Computed from 1-Cy-Invy, so range needs to be calculated based on those values
   real<lower=0.3, upper=0.84> r_pi;
@@ -589,7 +591,7 @@ parameters {
   real<lower=0.7, upper=1> rho_pi;
   real<lower=0.65, upper=1> rh_i;
   
-  
+  real<lower=0,upper =0.4>kappa;
  // real<lower=0> rho_er; // Since rho_er=0, it is set as the lower bound
   real<lower=0, upper=1> rho_lamdaw; // Since rho_lamdaw=0, it is set as the lower bound
   real<lower=0, upper=1> rho_q; // Since rho_q=0, it is set as the lower bound
@@ -599,14 +601,34 @@ parameters {
  
   // rho_L has a given value of 0.9, the range would be 0.4 to 1 since it can't exceed 1
   real<lower=0.4, upper=1> rho_L;
+  // Existing parameters
+  real<lower=0, upper=1> psi_F;       // Persistence of fiscal inflation ψ^F
+  real<lower=0> delta_b_F;            // Sensitivity parameter δ_b^F
+  real<lower=0> b_param;              // Debt parameter b
+  real<lower=0> rho_M;                // Return parameter ρ_M
+  real<lower=0> R_short_term;         // Short-term nominal interest rate R
+  real<lower=0> inv_beta;             // Inverse discount factor β⁻¹
+  vector[T] epsilon_TF;               // Fiscal shocks ε_t^{TF}
+  vector[T] epsilon_tau;              // Fiscal policy shocks ε_t^τ
+  real<lower=0, upper=1> rho_tau;     // Fiscal policy persistence parameter
+  real delta_b;                       // Sensitivity to debt difference δ_b
+  real delta_y;                       // Sensitivity to output gap δ_y
+  real delta_dy;                      // Sensitivity to output change δ_{dy}
+  // Latent variables
+  vector[T] fiscal_inflation;         // Fiscal inflation π_t^F
+  vector[T] fiscal_unfunded_debt;     // Unfunded debt b_t^F
+  vector[T] R_b;                      // Return on long-term bond R^b_{t-1,t}
+  vector[T] P_bond;                   // Bond prices P_t^b
+  vector[T] government_debt;          // Government debt b_t
+  vector[T] tau;                      // Primary surplus τ_t
   
 }
   transformed parameters {
   vector[T] output_growth_shocked;
   vector[T] consumption_growth_shocked;
   vector[T] investment_growth_shocked;
-  vector[T] wage_growth_shocked;
-  vector[T] hours_shocked;
+ 
+ 
   vector[T] inflation_shocked;
   vector[T] ffr_shocked;
   vector[T] kapital_shocked;
@@ -620,14 +642,33 @@ parameters {
   vector[T] expected_C_hat_next_shocked;
   vector[T] expected_I_hat_next_shocked;
   vector[T] expected_R_hat_next_shocked;
-  vector[T] expected_W_hat_next_shocked;
+ 
   vector[T] expected_L_hat_next_shocked;
+   // Vectors to store shocked variables
+  vector[T] fiscal_inflation_shocked;
+  vector[T] fiscal_unfunded_debt_shocked;
+  vector[T] government_debt_shocked;
+  vector[T] tau_shocked;
+  vector[T] R_b_shocked;
+  vector[T] P_bond_shocked;
+  
+  // Initialize variables with initial values
+  fiscal_inflation_shocked[1] = fiscal_inflation[1];
+  fiscal_unfunded_debt_shocked[1] = fiscal_unfunded_debt[1];
+  government_debt_shocked[1] = government_debt[1];
+  tau_shocked[1] = tau[1];
+  P_bond_shocked[1] = P_bond[1];
+  
+  // Define the shocks to apply
+  vector[T] epsilon_TF_shocked;
+  vector[T] epsilon_tau_shocked;
+  vector[T] epsilon_pi_F_shocked;
+  vector[T] bond_price_shock_shocked;
    // Initialize with original vectors
   output_growth_shocked = output_growth_vector;
   consumption_growth_shocked = consumption_growth_vector;
   investment_growth_shocked = investment_growth_vector;
-  wage_growth_shocked = wage_growth_vector;
-  hours_shocked = hours_vector;
+  
   inflation_shocked = inflation_vector;
   ffr_shocked = ffr_vector;
   kapital_shocked = kapital;
@@ -641,7 +682,7 @@ parameters {
   expected_C_hat_next_shocked = expected_C_hat_next;
   expected_I_hat_next_shocked = expected_I_hat_next;
   expected_R_hat_next_shocked = expected_R_hat_next;
-  expected_W_hat_next_shocked = expected_W_hat_next;
+ 
   expected_L_hat_next_shocked = expected_L_hat_next;
 
 // Apply a 30% decrease in output growth at the specified time
@@ -652,14 +693,17 @@ parameters {
 
   // Propagate the shock through other series
   for (t in (shock_time + 1):T) {
-    
+    // Fiscal policy rule with shock
+real output_gap_shocked = output_growth_shocked[t] - potential_gdp_shocked[t];
+real output_change_shocked = output_growth_shocked[t] - output_growth_shocked[t-1]; // Adjusted to use 'output_growth_shocked'
+
   ffr_shocked[t] = inflation_shocked[t-1] +
-                 0.5 * ((output_growth_shocked[t-1] - potential_gdp_shocked[t-1]) / potential_gdp_shocked[t-1]) +
-                 0.5 * (inflation_shocked[t-1] - inflationtarget_shocked[t-1]) + inflationtarget_shocked[t-1] + epsilon_R[t];
+                 0.5 * ( output_gap_shocked) +
+                 0.5 * (inflation_shocked[t-1] - inflationtarget_shocked[t-1]) + inflationtarget_shocked[t] + epsilon_R[t];
 
 consumption_growth_shocked[t] = (h / (1 + h)) * consumption_growth_shocked[t-1] +
                                 (1 / (1 + h)) * expected_C_hat_next[t] +
-                                ((sigma_c - 1) / (sigma_c * (1 + lambda_w) * (1 + h))) * (hours_shocked[t-1] - expected_L_hat_next[t]) -
+                                 -
                                 ((1 - h) / ((1 + h)) * sigma_c) * (ffr_shocked[t] - inflation_shocked[t-1]) +
                                 ((1 - h) / ((1 + h) * sigma_c)) * epsilon_C[t];
 
@@ -673,31 +717,42 @@ investment_growth_shocked[t] = (1 / (1 + Beta)) * investment_growth_shocked[t-1]
 
 kapital_shocked[t] =(1-tao)*kapital_shocked[t-1]+tao*investment_growth_shocked[t-1]+tao*epsilon_I[t-1] ;
 
-hours_shocked[t] = -wage_growth_shocked[t] + (1 + psi) * ffr_shocked[t] + kapital_shocked[t-1];
 
 output_growth_shocked[t] = (1 - (tao * Ky) - gy) * consumption_growth_shocked[t] +
-                           (tao * Ky) * investment_growth_shocked[t] + gy * epsilon_G[t];
+                           (tao * Ky) * investment_growth_shocked[t] + gy * tau_shocked[t];
 
-// Breaking down the equation into smaller parts
-real part1_inflation = (Beta / (1 + Beta * gamma_pi)) * (expected_Pi_hat_next[t] - inflationtarget_shocked[t]);
-real part2_inflation = (gamma_pi / (1 + Beta * gamma_pi)) * (inflation_shocked[t-1] - inflationtarget_shocked[t]);
-real part3_adjustment = (1 / (1 - Beta * gamma_pi)) * (((1 - Beta * zeta_ps) * (1 - zeta_ps)) / zeta_ps);
-real part4_inflation = alpha * ffr_shocked[t] + (1 - alpha) * wage_growth_shocked[t] - epsilon_pitwo[t] - (1 - alpha) * gamma_w;
-real part5_inflation = epsilon_PI[t] + inflationtarget_shocked[t];
 
 // Final inflation shocked equation
-inflation_shocked[t] = part1_inflation + part2_inflation + part3_adjustment * part4_inflation + part5_inflation;
+inflation_shocked[t] = kappa * (output_growth_shocked[t] - potential_gdp_shocked[t]) + beta * expected_Pi_hat_next_shocked[t]; 
 
 
-real part1_wage= (Beta / (1 + Beta)) *expected_W_hat_next[t] ;
-real part2_wage= (1 / (1 + Beta)) *  wage_growth_shocked[t-1];
-real part3_inflation = (Beta / (1 + Beta)) * (inflationtarget_shocked[t-1] -  inflation_shocked[t]);
-real  part4_inflation_wage = ((1 + (Beta * gamma_w)) / (1 + Beta)) * (inflationtarget_shocked[t-1] - inflation_shocked[t]);
-real part5w = (gamma_w / (1 + Beta)) * (inflationtarget_shocked[t-1] -inflation_shocked[t]);
-real adjustment_factor = (1/(1+Beta))*((1 - (Beta * zeta_ws) * (1 - zeta_ws)) / (1 + ((1 - lambda_w) * sigma_L) / lambda_w) * zeta_ws);
-real complex_part = adjustment_factor * (wage_growth_shocked[t-1] - (sigma_L * hours_shocked[t]) - (1 / (1 - h)) * (consumption_growth_shocked[t] - (h * consumption_growth_shocked[t-1])) + epsilon_L[t])+epsilon_W[t]; 
-wage_growth_shocked[t] = part1_wage + part2_wage + part3_inflation - part4_inflation_wage - complex_part ;
-
+// Fiscal inflation with shock
+    fiscal_inflation_shocked[t] = psi_F * fiscal_inflation_shocked[t-1] + epsilon_pi_F_shocked[t];
+    
+    // Unfunded debt with shock
+    fiscal_unfunded_debt_shocked[t] = (inv_beta - delta_b_F) * fiscal_unfunded_debt_shocked[t-1]
+                                      - b_param * (inv_beta - psi_F) * fiscal_inflation_shocked[t]
+                                      + epsilon_TF_shocked[t];
+    
+    // Bond price with shock
+    P_bond_shocked[t] = P_bond_shocked[t-1] + bond_price_shock_shocked[t];
+    
+    // Return on long-term bond with shock
+    R_b_shocked[t-1] = (rho_M / R_short_term) * P_bond_shocked[t] - P_bond_shocked[t-1];
+    
+    // Government debt with shock
+    government_debt_shocked[t] = inv_beta * government_debt_shocked[t-1]
+                                 + b_param * inv_beta * (R_b_shocked[t-1] - output[t] + output[t-1] - inflation[t])
+                                 - tau_shocked[t];
+    
+    // Fiscal policy rule with shock
+    
+    tau_shocked[t] = rho_tau * tau_shocked[t-1]
+                     + (1 - rho_tau) * (delta_b * (government_debt_shocked[t-1] - fiscal_unfunded_debt_shocked[t-1])
+                     + delta_b_F * fiscal_unfunded_debt_shocked[t-1]
+                     + delta_y * output_gap)
+                     + delta_dy * output_change
+                     + epsilon_tau_shocked[t];
 
     
 
@@ -706,16 +761,44 @@ wage_growth_shocked[t] = part1_wage + part2_wage + part3_inflation - part4_infla
 }
 
 model {
+  // Priors
+  psi_F ~ beta(2, 2);
+  Kappa ~ normal(.2,.07);
+  delta_b_F ~ normal(0, 1);
+  b_param ~ normal(0, 1);
+  rho_M ~ normal(0, 1);
+  R_short_term ~ normal(1.02, 0.01);
+  inv_beta ~ normal(1.02, 0.01);
+  rho_tau ~ beta(2, 2);
+  delta_b ~ normal(0, 1);
+  delta_y ~ normal(0, 1);
+  delta_dy ~ normal(0, 1);
+  epsilon_TF ~ normal(0, 0.1);
+  epsilon_tau ~ normal(0, 0.1);
+  epsilon_pi_F ~ normal(0, 0.1);
+  bond_price_shock ~ normal(0, 0.1);
   
+  // Initial conditions
+  fiscal_inflation[1] ~ normal(0, 0.1);
+  fiscal_unfunded_debt[1] ~ normal(0, 0.1);
+  government_debt[1] ~ normal(0, 0.1);
+  tau[1] ~ normal(0, 0.1);
+  P_bond[1] ~ normal(1, 0.1);
   // Priors for parameters based on the provided table
   phi ~ normal(4.00, 1.50);
   //sigma_c ~ normal(1.50, 0.37);
-  h ~ beta(0.3, 14);  // Beta parameters calculated from mean and standard deviation
-  zeta_ws ~ beta(0.3, 12);  // Mean=0.5, SD=0.10 implies alpha=beta
+  h ~ beta(6, 14);  // Beta parameters calculated from mean and standard deviation
+  zeta_ws ~ beta(12.25, 12.25);
+
+// Mean=0.5, SD=0.10 implies alpha=beta
   //sigma_e_L ~ normal(2.00, 0.75);
-  zeta_ps ~ beta(0.3, 12);  // Mean=0.5, SD=0.10 implies alpha=beta
-  lambda_w ~ beta(0.3, 5.055);  // Mean=0.5, SD=0.15 implies alpha=beta
-  psi ~ beta(0.3, 5.05);  // Mean=0.5, SD=0.15 implies alpha=beta
+   zeta_ps ~ beta(12.25, 12.25);
+ // Mean=0.5, SD=0.10 implies alpha=beta
+  lambda_w ~ beta( 5.055556, 5.055556);  // Mean=0.5, SD=0.15 implies alpha=beta
+ 
+  psi ~ beta(5.5556, 5.5556);
+
+// Mean=0.5, SD=0.15 implies alpha=beta
   phi_uppercase ~ normal(1.25, 0.12);
   r_pi ~ normal(1.50, 0.25);
   
@@ -724,18 +807,33 @@ model {
   
   rbar_k ~ normal(0.40, 0.10);
   alpha ~ normal(0.30, 0.05);
-   
+   // Prior for c_epsilon
+  epsilon_C ~ normal(0.2235108, 0.5110157);
 
+  // Prior for g_epsilon
+  epsilon_G ~ normal(0.2881206, 0.902025);
 
+  // Prior for i_epsilon
+  epsilon_I~ normal(-0.01233631, 0.2190598);
 
-   rho ~ beta(0.3, 2.625);
-  rho_el ~ beta(0.3, 2.625);
-  rho_ea ~ beta(0.3, 2.625);
-  rho_eb ~ beta(0.3, 2.625);
-  rho_G ~ beta(0.3, 2.625);
-  rho_pi ~ beta(0.3, 2.625);
-  rh_i ~ beta(0.3, 2.625);
-  rho_L ~ beta(0.3, 2.625);
+ 
+
+  // Prior for pi_epsilon
+  epsilon_PI ~ normal(0.02746, 0.1849336);
+
+  // Prior for r_epsilon
+   epsilon_R ~ normal(0.009779291, 0.1262237); 
+  
+   epsilon_Q ~ normal(0.7000578, 0.7411022);
+
+   rho ~ beta(2.625, 2.625);
+  rho_el ~ beta(2.625, 2.625);
+  rho_ea ~ beta(2.625, 2.625);
+  rho_eb ~ beta(2.65, 2.625);
+  rho_G ~ beta(2.65, 2.625);
+  rho_pi ~ beta(2.625, 2.625);
+  rh_i ~ beta(2.625, 2.625);
+  rho_L ~ beta(2.625, 2.625);
   // Likelihood
   
   
@@ -744,7 +842,7 @@ model {
   mu_C_hat ~ normal(0.5452631, sigma_C_hat);
   mu_I_hat ~ normal( 0.4092956, sigma_I_hat);
   mu_R_hat ~ normal( 1.598727, sigma_R_hat);
-  mu_W_hat ~ normal(0.372847, sigma_W_hat);
+  
   mu_L_hat ~ normal( 1.585092, sigma_L_hat);
 
   // Stochastic processes for expected terms
@@ -752,7 +850,7 @@ model {
   expected_C_hat_next[1] ~ normal(mu_C_hat, sigma_C_hat);
   expected_I_hat_next[1] ~ normal(mu_I_hat, sigma_I_hat);
   expected_R_hat_next[1] ~ normal(mu_R_hat, sigma_R_hat);
-  expected_W_hat_next[1] ~ normal(mu_W_hat, sigma_W_hat);
+  
   expected_L_hat_next[1] ~ normal(mu_L_hat, sigma_L_hat);
 
   for (t in 3:T) {
@@ -760,22 +858,28 @@ model {
     expected_C_hat_next[t] ~ normal(expected_C_hat_next[t-1], sigma_C_hat);
     expected_I_hat_next[t] ~ normal(expected_I_hat_next[t-1], sigma_I_hat);
     expected_R_hat_next[t] ~ normal(expected_R_hat_next[t-1], sigma_R_hat);
-    expected_W_hat_next[t] ~ normal(expected_W_hat_next[t-1], sigma_W_hat);
+   
     expected_L_hat_next[t] ~ normal(expected_L_hat_next[t-1], sigma_L_hat);
   
  
   
-    ffr_vector[t] ~ normal(inflation_vector[t-1] + 
-                   (0.5 * (output_growth_vector[t-1] -potential_gdp[t-1])/potential_gdp[t-1]) + 
-                   (0.5 * (inflation_vector[t-1] -  inflationtarget[t-1])) + 
-                    inflationtarget[t] + epsilon_R[t],0.9289912);
-    real part1 = (h / (1 + h)) * consumption_growth_vector[t-1]; 
-    real part2 = (1 / (1 + h)) *expected_C_hat_next[t]; 
-    real part3 = ((sigma_c - 1) / (sigma_c * (1 + lambda_w) * (1 + h))) * (hours_vector[t] - expected_L_hat_next[t]);
-    real part4 = -((1 - h) / ((1 + h)) * sigma_c) * (ffr_vector[t] -expected_Pi_hat_next[t] );
-    real part5 = ((1 - h) / ((1 + h) * sigma_c)) * epsilon_C[t] ; // Assuming rho_c and eta_c are arrays generated in 'generated quantities'
+    ffr_vector[t] ~ normal(
+ inflation_vector[t-1] +
+                 0.5 * ( output_gap) +
+                 0.5 * (inflation_vector[t-1] - inflationtaget[t-1]) + inflationtarget[t] + epsilon_R[t] ,
+  0.9289912
+);
 
-    consumption_growth_vector[t] ~ normal(part1 + part2 + part3 + part4 + part5,0.7461217);
+     // Assuming rho_c and eta_c are arrays generated in 'generated quantities'
+  real part1 = (h / (1 + h)) * consumption_growth_vector[t-1];
+real part2 = (1 / (1 + h)) * expected_C_hat_next[t];
+
+real part4 = -((1 - h) / ((1 + h)) * sigma_c) * (ffr_vector[t] - expected_Pi_hat_next[t]);
+real part5 = ((1 - h) / ((1 + h) * sigma_c)) * epsilon_C[t];
+
+consumption_growth_vector[t] ~ normal(part1 + part2 +  part4 + part5, 0.7461217);
+
+   
      
      //r_k_star~ (-(kapital[t]-hours_vector[t])-wage_growth_vector[t],)
      //Output gap equation
@@ -788,27 +892,54 @@ model {
    kapital[t] ~ normal((1-tao)*kapital[t-1]+tao*investment_growth_vector[t-1]+tao*epsilon_I[t-1],0.2299672 );
 
     
-   hours_vector[t]~ normal(-wage_growth_vector[t] + (1+psi)*ffr_vector[t]+ kapital[t-1],0.7029192);
+  
    
-   output_growth_vector[t] ~ normal((1 - (tao*Ky) - gy) * consumption_growth_vector[t] + (tao*Ky) * investment_growth_vector[t] + gy *epsilon_G[t],0.7320224);
+   output_growth_vector[t] ~ normal((1 - (tao * Ky) - gy) * consumption_growth_vector[t] +
+    (tao * Ky) * investment_growth_vector[t] +
+    gy * tau[t] +  // Include fiscal policy response
+    epsilon_G[t],0.7320224);
       
 // Breaking down the calculation into parts
- real parta = (Beta / (1 + Beta * gamma_pi)) * (expected_Pi_hat_next[t]-inflationtarget[t]);
- real partb = (gamma_pi / (1 + Beta * gamma_pi)) * (inflation_vector[t-1] -inflationtarget[t]) ;
- real partc =  (1/(1 - Beta * gamma_pi))* (((1-Beta*zeta_ps)*(1-zeta_ps))/zeta_ps)*(ffr_vector[t]+((1-alpha)*wage_growth_vector[t])-epsilon_pitwo[t]-(1-alpha)*gamma_w);
- real parte =epsilon_PI[t];
+ 
 // Combine parts
-  inflation_vector[t]~  normal(parta + partb + partc + parte +  inflationtarget[t],0.4543148);
+  inflation_vector[t]~  normal(kappa * (output_growth[t] - potential_gd[t]) + beta * expected_Pi_hat_next[t],0.4543148);
    
-     real part1w = (Beta / (1 + Beta)) *expected_W_hat_next[t] ;
-    real part2w = (1 / (1 + Beta)) * wage_growth_vector[t-1];
-    real part3w = (Beta / (1 + Beta)) * (inflationtarget[t-1] - inflation_vector[t]);
-    real part4w = ((1 + (Beta * gamma_w)) / (1 + Beta)) * (inflationtarget[t-1] - inflation_vector[t]);
-    real part5w = (gamma_w / (1 + Beta)) * (inflationtarget[t-1] -inflation_vector[t]);
-    real adjustment_factor = (1/(1+Beta))*((1 - (Beta * zeta_ws) * (1 - zeta_ws)) / (1 + ((1 - lambda_w) * sigma_L) / lambda_w) * zeta_ws);
-    real complex_part = adjustment_factor * (wage_growth_vector[t-1] - (sigma_L * hours_vector[t]) - (1 / (1 - h)) * (consumption_growth_vector[t] - (h * consumption_growth_vector[t-1]))) + epsilon_L[t]; 
+    // Fiscal inflation dynamics
+    fiscal_inflation[t] ~ normal(psi_F * fiscal_inflation[t-1] + epsilon_pi_F[t], sigma_fiscal_inflation);
 
-    wage_growth_vector[t] ~ normal(part1w + part2w + part3w - part4w + part5w - complex_part + epsilon_W[t], 0.676194);
+    // Unfunded debt dynamics
+    fiscal_unfunded_debt[t] ~ normal(
+      (inv_beta - delta_b_F) * fiscal_unfunded_debt[t-1] - b_param * (inv_beta - psi_F) * fiscal_inflation[t] + epsilon_TF[t],
+      sigma_fiscal_unfunded_debt
+    );
+
+    // Bond price dynamics
+    P_bond[t] ~ normal(P_bond[t-1] + bond_price_shock[t], sigma_bond_price);
+
+    // Return on long-term bond
+    R_b[t-1] = (rho_M / R_short_term[t-1]) * P_bond[t] - P_bond[t-1];
+
+    // Government debt dynamics
+    government_debt[t] ~ normal(
+      inv_beta * government_debt[t-1] + b_param * inv_beta * (R_b[t-1] - output[t] + output[t-1] - inflation[t]) - tau[t],
+      sigma_government_debt
+    );
+
+    // Fiscal policy rule
+   // Fiscal policy rule with shock
+real output_gap = output_growth_vector[t] - potential_gdp[t];
+real output_change = output_growth[t] - output_growth[t-1]; // Adjusted to use 'output_growth_shocked'
+
+
+    tau[t] ~ normal(
+      rho_tau * tau[t-1]
+      + (1 - rho_tau) * (delta_b * (government_debt[t-1] - fiscal_unfunded_debt[t-1]) + delta_b_F * fiscal_unfunded_debt[t-1] + delta_y * output_gap)
+      + delta_dy * output_change
+      + epsilon_tau[t],
+      sigma_tau
+    );
+    
+    
   }
    }
  
@@ -817,14 +948,13 @@ model {
   vector[T] output_growth_shocked_output;
   vector[T] consumption_growth_shocked_output;
   vector[T] investment_growth_shocked_output;
-  vector[T] wage_growth_shocked_output;
-  vector[T] hours_shocked_output;
+  
   vector[T] inflation_shocked_output;
   vector[T] ffr_shocked_output;
   vector[T] expected_Pi_hat_next_shocked_output;
   vector[T] expected_I_hat_next_shocked_output;
   vector[T] expected_R_hat_next_shocked_output;
-  vector[T] expected_W_hat_next_shocked_output;   
+     
   vector[T] expected_L_hat_next_shocked_output;
   vector[T] expected_C_hat_next_shocked_output;
 
@@ -832,14 +962,14 @@ model {
   output_growth_shocked_output = output_growth_shocked;
   consumption_growth_shocked_output = consumption_growth_shocked;
   investment_growth_shocked_output = investment_growth_shocked;
-  wage_growth_shocked_output = wage_growth_shocked;
-  hours_shocked_output = hours_shocked;
+  
+  
   inflation_shocked_output = inflation_shocked;
   ffr_shocked_output = ffr_shocked;
   expected_Pi_hat_next_shocked_output = expected_Pi_hat_next_shocked;
   expected_I_hat_next_shocked_output = expected_I_hat_next_shocked;
    expected_R_hat_next_shocked_output = expected_R_hat_next_shocked;
-  expected_W_hat_next_shocked_output = expected_W_hat_next_shocked;
+ 
   expected_L_hat_next_shocked_output = expected_L_hat_next_shocked;
   expected_C_hat_next_shocked_output = expected_C_hat_next_shocked;
 }
@@ -1444,7 +1574,15 @@ data_list <- list(
   inflation_vector = final$Inflation,
   ffr_vector = final$Ffr,
   kapital = my_data$K_hat,
-  q = my_data$Q_hat
+  q = my_data$Q_hat,
+  c_epsilon=my_data$epsilon_C,
+  g_epsilon=my_data$epsilon_G,
+  i_epsilon=my_data$epsilon_I,
+  w_epsilon=my_data$epsilon_W,
+  pi_epsilon=my_data$epsilon_Pi,
+  r_epsison=my_data$epsilon_R,
+  w_epsilon=my_data$epsilon_W,
+  r_epsilon=my_data$epsilon_R
 )
 
 
