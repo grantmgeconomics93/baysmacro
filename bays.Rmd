@@ -549,6 +549,8 @@ parameters {
  vector[T] epsilon_C;
   vector[T] epsilon_I;
   vector[T] epsilon_R;
+   
+ 
   
   vector[T] epsilon_PI;
   vector[T] epsilon_Q;
@@ -591,7 +593,7 @@ parameters {
   real<lower=0.7, upper=1> rho_pi;
   real<lower=0.65, upper=1> rh_i;
   
-  real<lower=0,upper =0.4>kappa;
+  real<lower=0,upper =0.4> kappa;
  // real<lower=0> rho_er; // Since rho_er=0, it is set as the lower bound
   real<lower=0, upper=1> rho_lamdaw; // Since rho_lamdaw=0, it is set as the lower bound
   real<lower=0, upper=1> rho_q; // Since rho_q=0, it is set as the lower bound
@@ -601,6 +603,11 @@ parameters {
  
   // rho_L has a given value of 0.9, the range would be 0.4 to 1 since it can't exceed 1
   real<lower=0.4, upper=1> rho_L;
+   real<lower=0> sigma_fiscal_inflation;
+  real<lower=0> sigma_fiscal_unfunded_debt;
+  real<lower=0> sigma_bond_price;
+  real<lower=0> sigma_government_debt;
+  real<lower=0> sigma_output;
   // Existing parameters
   real<lower=0, upper=1> psi_F;       // Persistence of fiscal inflation ψ^F
   real<lower=0> delta_b_F;            // Sensitivity parameter δ_b^F
@@ -613,15 +620,16 @@ parameters {
   real<lower=0, upper=1> rho_tau;     // Fiscal policy persistence parameter
   real delta_b;                       // Sensitivity to debt difference δ_b
   real delta_y;                       // Sensitivity to output gap δ_y
-  real delta_dy;                      // Sensitivity to output change δ_{dy}
+  real delta_dy;// Sensitivity to output change δ_{dy}
+  vector[T] epsilon_pi_F;
   // Latent variables
   vector[T] fiscal_inflation;         // Fiscal inflation π_t^F
   vector[T] fiscal_unfunded_debt;     // Unfunded debt b_t^F
   vector[T] R_b;                      // Return on long-term bond R^b_{t-1,t}
   vector[T] P_bond;                   // Bond prices P_t^b
   vector[T] government_debt;          // Government debt b_t
-  vector[T] tau;                      // Primary surplus τ_t
-  
+  vector[T] tau;// Primary surplus τ_t
+  vector[T] bond_price_shock;
 }
   transformed parameters {
   vector[T] output_growth_shocked;
@@ -723,7 +731,8 @@ output_growth_shocked[t] = (1 - (tao * Ky) - gy) * consumption_growth_shocked[t]
 
 
 // Final inflation shocked equation
-inflation_shocked[t] = kappa * (output_growth_shocked[t] - potential_gdp_shocked[t]) + beta * expected_Pi_hat_next_shocked[t]; 
+inflation_shocked[t] = kappa * (output_growth_shocked[t] - potential_gdp_shocked[t]) + Beta * expected_Pi_hat_next_shocked[t]; 
+
 
 
 // Fiscal inflation with shock
@@ -738,11 +747,11 @@ inflation_shocked[t] = kappa * (output_growth_shocked[t] - potential_gdp_shocked
     P_bond_shocked[t] = P_bond_shocked[t-1] + bond_price_shock_shocked[t];
     
     // Return on long-term bond with shock
-    R_b_shocked[t-1] = (rho_M / R_short_term) * P_bond_shocked[t] - P_bond_shocked[t-1];
+    R_b_shocked[t-1] = (rho_M / ffr_vector[t]) * P_bond_shocked[t] - P_bond_shocked[t-1];
     
     // Government debt with shock
     government_debt_shocked[t] = inv_beta * government_debt_shocked[t-1]
-                                 + b_param * inv_beta * (R_b_shocked[t-1] - output[t] + output[t-1] - inflation[t])
+                                 + b_param * inv_beta * (R_b_shocked[t-1] - output_growth_shocked[t] + output_growth_shocked[t-1] - inflation_shocked[t])
                                  - tau_shocked[t];
     
     // Fiscal policy rule with shock
@@ -750,8 +759,8 @@ inflation_shocked[t] = kappa * (output_growth_shocked[t] - potential_gdp_shocked
     tau_shocked[t] = rho_tau * tau_shocked[t-1]
                      + (1 - rho_tau) * (delta_b * (government_debt_shocked[t-1] - fiscal_unfunded_debt_shocked[t-1])
                      + delta_b_F * fiscal_unfunded_debt_shocked[t-1]
-                     + delta_y * output_gap)
-                     + delta_dy * output_change
+                     + delta_y * output_gap_shocked)
+                     + delta_dy * output_change_shocked
                      + epsilon_tau_shocked[t];
 
     
@@ -763,11 +772,11 @@ inflation_shocked[t] = kappa * (output_growth_shocked[t] - potential_gdp_shocked
 model {
   // Priors
   psi_F ~ beta(2, 2);
-  Kappa ~ normal(.2,.07);
+  kappa ~ normal(.2,.07);
   delta_b_F ~ normal(0, 1);
   b_param ~ normal(0, 1);
   rho_M ~ normal(0, 1);
-  R_short_term ~ normal(1.02, 0.01);
+ //R_short_term ~ normal(1.02, 0.01);
   inv_beta ~ normal(1.02, 0.01);
   rho_tau ~ beta(2, 2);
   delta_b ~ normal(0, 1);
@@ -778,7 +787,12 @@ model {
   epsilon_pi_F ~ normal(0, 0.1);
   bond_price_shock ~ normal(0, 0.1);
   
-  // Initial conditions
+   // Define the inverse gamma distributions for sigma parameters using the values from the image
+  sigma_fiscal_inflation ~ inv_gamma(0.1, 2.0);  // for σ_p (if this corresponds to inflation shock)
+  sigma_fiscal_unfunded_debt ~ inv_gamma(1.0, 2.0);  // for σ_b
+  sigma_bond_price ~ inv_gamma(0.1, 2.0);  // for σ_g (adjust according to what you want to represent)
+  sigma_government_debt ~ inv_gamma(1, 2.0);  // for σ_debt
+  // Initial conditins
   fiscal_inflation[1] ~ normal(0, 0.1);
   fiscal_unfunded_debt[1] ~ normal(0, 0.1);
   government_debt[1] ~ normal(0, 0.1);
@@ -860,13 +874,12 @@ model {
     expected_R_hat_next[t] ~ normal(expected_R_hat_next[t-1], sigma_R_hat);
    
     expected_L_hat_next[t] ~ normal(expected_L_hat_next[t-1], sigma_L_hat);
-  
- 
+
   
     ffr_vector[t] ~ normal(
  inflation_vector[t-1] +
-                 0.5 * ( output_gap) +
-                 0.5 * (inflation_vector[t-1] - inflationtaget[t-1]) + inflationtarget[t] + epsilon_R[t] ,
+                 0.5 * ( potential_gdp[t]-output_growth_vector[t]) +
+                 0.5 * (inflation_vector[t-1] - inflationtarget[t-1]) + inflationtarget[t] + epsilon_R[t] ,
   0.9289912
 );
 
@@ -902,10 +915,12 @@ consumption_growth_vector[t] ~ normal(part1 + part2 +  part4 + part5, 0.7461217)
 // Breaking down the calculation into parts
  
 // Combine parts
-  inflation_vector[t]~  normal(kappa * (output_growth[t] - potential_gd[t]) + beta * expected_Pi_hat_next[t],0.4543148);
+  inflation_vector[t] ~ normal(kappa * (output_growth_vector[t] - potential_gdp[t]) + Beta * expected_Pi_hat_next[t],0.4543148);
    
     // Fiscal inflation dynamics
     fiscal_inflation[t] ~ normal(psi_F * fiscal_inflation[t-1] + epsilon_pi_F[t], sigma_fiscal_inflation);
+  
+
 
     // Unfunded debt dynamics
     fiscal_unfunded_debt[t] ~ normal(
@@ -917,7 +932,7 @@ consumption_growth_vector[t] ~ normal(part1 + part2 +  part4 + part5, 0.7461217)
     P_bond[t] ~ normal(P_bond[t-1] + bond_price_shock[t], sigma_bond_price);
 
     // Return on long-term bond
-    R_b[t-1] = (rho_M / R_short_term[t-1]) * P_bond[t] - P_bond[t-1];
+    R_b[t-1] = (rho_M / ffr_vector[t-1]) * P_bond[t] - P_bond[t-1];
 
     // Government debt dynamics
     government_debt[t] ~ normal(
